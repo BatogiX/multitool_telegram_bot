@@ -1,0 +1,5 @@
+redis
+aiogram
+aiofiles
+python-dotenv
+asyncio
