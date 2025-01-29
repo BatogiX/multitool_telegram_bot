@@ -1,4 +1,4 @@
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.markdown import text
@@ -10,7 +10,7 @@ from utils import HashMenuUtils, BotUtils
 fsm_router = Router(name=__name__)
 
 
-@fsm_router.message(StateFilter(HashMenuStates))
+@fsm_router.message(StateFilter(HashMenuStates), F.document)
 async def process_check_hash(message: types.Message, state: FSMContext):
     try:
         is_match, expected_hash, hash_type, computed_hash  = await HashMenuUtils.check_hash(state, message)
