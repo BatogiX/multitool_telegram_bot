@@ -4,6 +4,7 @@ from aiogram.types import CallbackQuery
 
 from callback_data import HashMenu
 from filters import CbMagicFilters
+from fsm import HashMenuStates
 from keyboards import InlineKeyboards
 from utils import HashMenuUtils
 
@@ -11,7 +12,9 @@ callback_router = Router(name=__name__)
 
 
 @callback_router.callback_query(CbMagicFilters.HashMenu_ENTER(F.data))
-async def enter_hash_menu(callback_query: CallbackQuery):
+async def enter_hash_menu(callback_query: CallbackQuery, state: FSMContext):
+    if await state.get_state() in HashMenuStates:
+        await state.set_state(None)
     inline_kb = InlineKeyboards.hash_menu_keyboard()
     await callback_query.message.edit_text(text="Choose hash option", reply_markup=inline_kb)
 
