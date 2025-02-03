@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 
+from utils.config_utils import ConfigUtils
+
 # ================================ #
 # 🚀 LOADING ENVIRONMENT VARIABLES #
 # ================================ #
@@ -19,25 +21,26 @@ ADMINS: set[int] = set()
 
 TOKEN_ENV_VAR = os.getenv("TOKEN")
 
-# ================= #
-# 🔥 REDIS SETTINGS #
-# ================= #
+# =============================== #
+# 🔥 KEY-VALUE DATABASES SETTINGS #
+# =============================== #
 
-REDIS_HOST_ENV_VAR = os.getenv("REDIS_HOST")
-REDIS_PORT_ENV_VAR = int(os.getenv("REDIS_PORT"))
-REDIS_USERNAME_ENV_VAR = os.getenv("REDIS_USERNAME", None)
-REDIS_PASSWORD_ENV_VAR = os.getenv("REDIS_PASSWORD", None)
+KEY_VALUE_DB_HOST = os.getenv("KEY_VALUE_DB_HOST", "localhost")
+KEY_VALUE_DB_PORT = int(os.getenv("KEY_VALUE_DB_PORT", "6379"))
+KEY_VALUE_DB_USERNAME = os.getenv("KEY_VALUE_DB_USERNAME")
+KEY_VALUE_DB_PASSWORD = os.getenv("KEY_VALUE_DB_PASSWORD")
+KEY_VALUE_DB_URL = os.getenv("KEY_VALUE_DB_URL")
 
-# ====================== #
-# 🛢️ POSTGRESQL SETTINGS #
-# ====================== #
+# ================================ #
+# 🛢️ RELATIONAL DATABASES SETTINGS #
+# ================================ #
 
-POSTGRESQL_HOST_ENV_VAR = os.getenv("POSTGRESQL_HOST")
-POSTGRESQL_DATABASE_ENV_VAR = os.getenv("POSTGRESQL_DATABASE")
-POSTGRESQL_USER_ENV_VAR = os.getenv("POSTGRESQL_USER", "postgres")
-POSTGRESQL_PORT_ENV_VAR = os.getenv("POSTGRESQL_PORT")
-POSTGRESQL_PASSWORD_ENV_VAR = os.getenv("POSTGRESQL_PASSWORD")
-POSTGRESQL_URI_ENV_VAR = os.getenv("POSTGRESQL_URI")
+RELATIONAL_DB_HOST = os.getenv("RELATIONAL_DB_HOST", "localhost")
+RELATIONAL_DB_NAME = os.getenv("RELATIONAL_DB_NAME", "database")
+RELATIONAL_DB_USER = os.getenv("RELATIONAL_DB_USER", "user")
+RELATIONAL_DB_PORT = int(os.getenv("RELATIONAL_DB_PORT", "5432"))
+RELATIONAL_DB_PASSWORD = os.getenv("RELATIONAL_DB_PASSWORD")
+RELATIONAL_DB_URL = os.getenv("DATABASE_URL")
 
 # ================================ #
 # ⚙️ CONNECTION POOL CONFIGURATION #
@@ -47,6 +50,13 @@ POSTGRESQL_URI_ENV_VAR = os.getenv("POSTGRESQL_URI")
 KEY_VALUE_DB_MAX_POOL_SIZE = 10
 
 # For relational database (PostgreSQL)
-RELATION_DB_MIN_POOL_SIZE = 1
-RELATION_DB_MAX_POOL_SIZE = 10
-RELATION_DB_MAX_QUERIES = 1000
+RELATIONAL_DB_MIN_POOL_SIZE = 1
+RELATIONAL_DB_MAX_POOL_SIZE = 10
+RELATIONAL_DB_MAX_QUERIES = 1000
+
+# ================================ #
+# 🛢️ DATABASE URLS                #
+# ================================ #
+
+PG_DB_URL = ConfigUtils.get_postgres_url()
+REDIS_DB_URL = ConfigUtils.get_redis_url()

@@ -3,7 +3,7 @@ import logging
 import asyncpg
 from asyncpg import Pool, Connection
 
-import config
+import config as c
 from db.base import AbstractRelationDatabase
 
 
@@ -13,23 +13,23 @@ class PostgresqlManager(AbstractRelationDatabase):
     @classmethod
     async def connect(cls) -> Pool:
         if cls._pool is None:
-            if config.POSTGRESQL_URI_ENV_VAR:
+            if c.PG_DB_URL:
                 cls._pool = await asyncpg.create_pool(
-                    dsn=config.POSTGRESQL_URI_ENV_VAR,
-                    min_size=config.RELATION_DB_MIN_POOL_SIZE,
-                    max_size=config.RELATION_DB_MAX_POOL_SIZE,
-                    max_queries=config.RELATION_DB_MAX_QUERIES
+                    dsn=c.RELATIONAL_DB_URL,
+                    min_size=c.RELATIONAL_DB_MIN_POOL_SIZE,
+                    max_size=c.RELATIONAL_DB_MAX_POOL_SIZE,
+                    max_queries=c.RELATIONAL_DB_MAX_QUERIES
                 )
             else:
                 cls._pool = await asyncpg.create_pool(
-                    host=config.POSTGRESQL_HOST_ENV_VAR,
-                    port=config.POSTGRESQL_PORT_ENV_VAR,
-                    user=config.POSTGRESQL_USER_ENV_VAR,
-                    password=config.POSTGRESQL_PASSWORD_ENV_VAR,
-                    database=config.POSTGRESQL_DATABASE_ENV_VAR,
-                    min_size=config.RELATION_DB_MIN_POOL_SIZE,
-                    max_size=config.RELATION_DB_MAX_POOL_SIZE,
-                    max_queries=config.RELATION_DB_MAX_QUERIES
+                    host=c.RELATIONAL_DB_HOST,
+                    port=c.RELATIONAL_DB_PORT,
+                    user=c.RELATIONAL_DB_USER,
+                    password=c.RELATIONAL_DB_PASSWORD,
+                    database=c.RELATIONAL_DB_NAME,
+                    min_size=c.RELATIONAL_DB_MIN_POOL_SIZE,
+                    max_size=c.RELATIONAL_DB_MAX_POOL_SIZE,
+                    max_queries=c.RELATIONAL_DB_MAX_QUERIES
                 )
             logging.info("Connected to PostgreSQL")
         return cls._pool

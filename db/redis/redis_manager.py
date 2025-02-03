@@ -2,7 +2,7 @@ import logging
 
 from redis.asyncio import Redis
 
-from config import config
+import config as c
 from db.base import AbstractKeyValueDatabase
 
 
@@ -12,14 +12,22 @@ class RedisManager(AbstractKeyValueDatabase):
     @classmethod
     async def connect(cls) -> Redis:
         if not cls._pool:
-            cls._pool = Redis(
-                host=config.REDIS_HOST_ENV_VAR,
-                port=config.REDIS_PORT_ENV_VAR,
-                username=config.REDIS_USERNAME_ENV_VAR,
-                password=config.REDIS_PASSWORD_ENV_VAR,
-                max_connections=config.KEY_VALUE_DB_MAX_POOL_SIZE,
+            if c.REDIS_DB_URL:
+                cls._pool = Redis.from_url(
+                url=c.REDIS_DB_URL,
+                max_connections=c.KEY_VALUE_DB_MAX_POOL_SIZE,
                 decode_responses=True,
-            )
+                )
+            else:
+                cls._pool = Redis(
+                    host=c.KEY_VALUE_DB_HOST,
+                    port=c.KEY_VALUE_DB_PORT,
+                    username=c.KEY_VALUE_DB_USERNAME,
+                    password=c.KEY_VALUE_DB_PASSWORD,
+                    max_connections=c.KEY_VALUE_DB_MAX_POOL_SIZE,
+                    decode_responses=True,
+                )
+            await cls._pool.ping()
             logging.info("Connected to Redis")
         return cls._pool
 
