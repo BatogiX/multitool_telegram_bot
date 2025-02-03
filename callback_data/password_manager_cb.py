@@ -3,7 +3,7 @@ from enum import Enum
 from aiogram.filters.callback_data import CallbackData
 
 
-class StartMenuCallbackData(CallbackData, prefix="start_menu"):
+class PasswordManagerCallbackData(CallbackData, prefix="password_manager"):
     action: str
 
     class ACTIONS(str, Enum):

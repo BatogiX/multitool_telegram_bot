@@ -1,6 +1,6 @@
-from .inline_hash_menu_keyboard import InlineHashMenuKeyboard
-from .inline_start_menu_keyboard import InlineStartMenuKeyboard
-from .reply_keyboards_keyboard import PassClass
+from .inline_keyboards.inline_hash_menu_keyboard import InlineHashMenuKeyboard
+from .inline_keyboards.inline_start_menu_keyboard import InlineStartMenuKeyboard
+from .reply_keyboards.reply_keyboards_keyboard import PassClass
 
 
 class InlineKeyboards(InlineHashMenuKeyboard, InlineStartMenuKeyboard):

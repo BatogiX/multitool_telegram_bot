@@ -1,4 +1,5 @@
-from .hash_menu_cb import HashMenu
-from .start_menu_cb import StartMenu
+from .hash_menu_cb import HashMenuCallbackData
+from .password_manager_cb import PasswordManagerCallbackData
+from .start_menu_cb import StartMenuCallbackData
 
-__all__ = ['StartMenu', 'HashMenu']
+__all__ = ['StartMenuCallbackData', 'HashMenuCallbackData', 'PasswordManagerCallbackData']

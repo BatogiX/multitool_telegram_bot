@@ -2,16 +2,16 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State
 from aiogram.types import CallbackQuery
 
-from callback_data import HashMenu
+from callback_data import HashMenuCallbackData
 from fsm import HashMenuStates
 from .calculate_hash import CalculateHash
 
 
 class HashMenuUtils(CalculateHash):
     _HASH_TO_STATE_MAPPING = {
-        HashMenu.hash_types.MD5: HashMenuStates.MD5,
-        HashMenu.hash_types.SHA1: HashMenuStates.SHA1,
-        HashMenu.hash_types.SHA256: HashMenuStates.SHA256,
+        HashMenuCallbackData.hash_types.MD5: HashMenuStates.MD5,
+        HashMenuCallbackData.hash_types.SHA1: HashMenuStates.SHA1,
+        HashMenuCallbackData.hash_types.SHA256: HashMenuStates.SHA256,
     }
 
     @classmethod

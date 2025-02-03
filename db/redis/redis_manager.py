@@ -2,28 +2,39 @@ import logging
 
 from redis.asyncio import Redis
 
-from config import REDIS_HOST_ENV_VAR, REDIS_PORT_ENV_VAR, REDIS_USERNAME_ENV_VAR, REDIS_PASSWORD_ENV_VAR
+from config import config
+from db.base import AbstractKeyValueDatabase
 
 
-class RedisManager:
-    connection: None | Redis = None
+class RedisManager(AbstractKeyValueDatabase):
+    _pool: None | Redis = None
 
     @classmethod
     async def connect(cls) -> Redis:
-        if not cls.connection:
-            cls.connection = Redis(
-                host=REDIS_HOST_ENV_VAR,
-                port=REDIS_PORT_ENV_VAR,
+        if not cls._pool:
+            cls._pool = Redis(
+                host=config.REDIS_HOST_ENV_VAR,
+                port=config.REDIS_PORT_ENV_VAR,
+                username=config.REDIS_USERNAME_ENV_VAR,
+                password=config.REDIS_PASSWORD_ENV_VAR,
+                max_connections=config.KEY_VALUE_DB_MAX_POOL_SIZE,
                 decode_responses=True,
-                username=REDIS_USERNAME_ENV_VAR,
-                password=REDIS_PASSWORD_ENV_VAR,
             )
             logging.info("Connected to Redis")
-        return cls.connection
+        return cls._pool
 
     @classmethod
     async def disconnect(cls) -> None:
-        if cls.connection:
-            await cls.connection.close()
+        if cls._pool:
+            await cls._pool.close()
             logging.info("Disconnected from Redis")
-            cls.connection = None
+            cls._pool = None
+
+    async def get(self, key: str):
+        return await self._pool.get(key)
+
+    async def set(self, key: str, value: str, expire: int = None):
+        await self._pool.set(key, value, ex=expire)
+
+    async def delete(self, key: str):
+        await self._pool.delete(key)

@@ -5,7 +5,8 @@ from aiogram.utils.markdown import text
 
 from fsm import HashMenuStates
 from keyboards import InlineKeyboards
-from utils import HashMenuUtils, BotUtils
+from utils import BotUtils
+from utils.hash_menu_utils import HashMenuUtils
 
 fsm_router = Router(name=__name__)
 

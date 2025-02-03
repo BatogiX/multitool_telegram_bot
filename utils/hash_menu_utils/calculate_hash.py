@@ -5,7 +5,7 @@ import aiofiles
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 
-from callback_data import HashMenu
+from callback_data import HashMenuCallbackData
 from fsm import HashMenuStates
 from utils import BotUtils
 
@@ -13,14 +13,14 @@ from utils import BotUtils
 class CalculateHash(BotUtils):
     _DEFAULT_CHUNK_SIZE = 4096
     _STATE_TO_HASH_MAPPING = {
-        HashMenuStates.MD5: HashMenu.hash_types.MD5,
-        HashMenuStates.SHA1: HashMenu.hash_types.SHA1,
-        HashMenuStates.SHA256: HashMenu.hash_types.SHA256,
+        HashMenuStates.MD5: HashMenuCallbackData.hash_types.MD5,
+        HashMenuStates.SHA1: HashMenuCallbackData.hash_types.SHA1,
+        HashMenuStates.SHA256: HashMenuCallbackData.hash_types.SHA256,
     }
     _HASH_TO_FUNC_MAPPING = {
-        HashMenu.hash_types.MD5: hashlib.md5,
-        HashMenu.hash_types.SHA1: hashlib.sha1,
-        HashMenu.hash_types.SHA256: hashlib.sha256,
+        HashMenuCallbackData.hash_types.MD5: hashlib.md5,
+        HashMenuCallbackData.hash_types.SHA1: hashlib.sha1,
+        HashMenuCallbackData.hash_types.SHA256: hashlib.sha256,
     }
 
 

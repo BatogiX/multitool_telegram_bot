@@ -38,7 +38,7 @@ class BotUtils:
 
     @staticmethod
     async def delete_fsm_message(state, message: types.Message) -> None:
-        message_id_to_delete = await state.get_data()
-        message_id_to_delete = message_id_to_delete.get("message_to_delete")
+        state_data: dict = await state.get_data()
+        message_id_to_delete: int = state_data.get("message_to_delete")
         await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id_to_delete)
 

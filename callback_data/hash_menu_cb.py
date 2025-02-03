@@ -3,7 +3,7 @@ from enum import Enum
 from aiogram.filters.callback_data import CallbackData
 
 
-class HashMenu(CallbackData, prefix="hash_menu"):
+class HashMenuCallbackData(CallbackData, prefix="hash_menu"):
     action: str
 
     class hash_types(str, Enum):

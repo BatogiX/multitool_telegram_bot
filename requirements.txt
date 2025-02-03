@@ -1,5 +1,6 @@
-redis
-aiogram
-aiofiles
-python-dotenv
-asyncio
+redis~=5.2.1
+asyncpg~=0.30.0
+aiogram~=3.17.0
+aiofiles~=24.1.0
+python-dotenv~=1.0.1
+asyncio~=3.4.3

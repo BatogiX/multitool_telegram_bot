@@ -1,13 +1,12 @@
 from aiogram import Router
 
-from .callback_handler import callback_router
-from .command_handler import command_router
-from .fsm_handler import fsm_router
+from handlers.command_handler import command_router
+from .hash_menu_handlers import hash_menu_router
 from .message_handler import message_router
+from .password_manager_handlers import password_manager_router
 
 router = Router()
 
-router.include_router(command_router)
-router.include_router(callback_router)
-router.include_router(fsm_router)
-router.include_router(message_router)
+router.include_routers(hash_menu_router, password_manager_router, command_router, message_router)
+
+__all__ = ["router"]

@@ -1,3 +1,3 @@
-from .redis import RedisManager
+from .manager import DatabaseManager
 
-__all__ = ['RedisManager']
+__all__ = ['DatabaseManager']
