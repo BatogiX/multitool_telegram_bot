@@ -1,7 +1,11 @@
 import os
+from typing import Optional
+
 from dotenv import load_dotenv
 
-from utils.config_utils import ConfigUtils
+from db import DatabaseManager
+from db.postgresql import PostgresqlManager
+from db.redis import RedisManager
 
 # ================================ #
 # 🚀 LOADING ENVIRONMENT VARIABLES #
@@ -9,54 +13,70 @@ from utils.config_utils import ConfigUtils
 
 load_dotenv()
 
-# ============ #
-# 🔑 ADMIN_IDS #
-# ============ #
+# =============================== #
+# 🔑 ADMIN IDS SEPERATED BY COMMA #
+# =============================== #
 
-ADMINS: set[int] = set()
+ADMINS: set[int] = set(int(admin_id) for admin_id in os.getenv("ADMINS_IDS", "").split(","))
 
 # ============ #
 # 🤖 BOT TOKEN #
 # ============ #
 
-TOKEN_ENV_VAR = os.getenv("TOKEN")
+TOKEN: Optional[str] = os.getenv("TOKEN")
+if not TOKEN:
+    raise ValueError("Bot token is not set in environment variables.")
 
-# =============================== #
-# 🔥 KEY-VALUE DATABASES SETTINGS #
-# =============================== #
+# =================================== #
+# 🔥 KEY-VALUE DATABASE CONFIGURATION #
+# =================================== #
 
-KEY_VALUE_DB_HOST = os.getenv("KEY_VALUE_DB_HOST", "localhost")
-KEY_VALUE_DB_PORT = int(os.getenv("KEY_VALUE_DB_PORT", "6379"))
-KEY_VALUE_DB_USERNAME = os.getenv("KEY_VALUE_DB_USERNAME")
-KEY_VALUE_DB_PASSWORD = os.getenv("KEY_VALUE_DB_PASSWORD")
-KEY_VALUE_DB_URL = os.getenv("KEY_VALUE_DB_URL")
+class KeyValueDatabaseConfig:
+    def __init__(self):
+        self.host: str = os.getenv("KEY_VALUE_DB_HOST", "localhost")
+        self.port: int = int(os.getenv("KEY_VALUE_DB_PORT", "6379"))
+        self.username: Optional[str] = os.getenv("KEY_VALUE_DB_USERNAME")
+        self.password: Optional[str] = os.getenv("KEY_VALUE_DB_PASSWORD")
+        self.url: Optional[str] = os.getenv("KEY_VALUE_DB_URL")
 
-# ================================ #
-# 🛢️ RELATIONAL DATABASES SETTINGS #
-# ================================ #
+key_value_db_config = KeyValueDatabaseConfig()
 
-RELATIONAL_DB_HOST = os.getenv("RELATIONAL_DB_HOST", "localhost")
-RELATIONAL_DB_NAME = os.getenv("RELATIONAL_DB_NAME", "database")
-RELATIONAL_DB_USER = os.getenv("RELATIONAL_DB_USER", "user")
-RELATIONAL_DB_PORT = int(os.getenv("RELATIONAL_DB_PORT", "5432"))
-RELATIONAL_DB_PASSWORD = os.getenv("RELATIONAL_DB_PASSWORD")
-RELATIONAL_DB_URL = os.getenv("DATABASE_URL")
+# ===================================== #
+# 🛢️ RELATIONAL DATABASES CONFIGURATION #
+# ===================================== #
 
-# ================================ #
-# ⚙️ CONNECTION POOL CONFIGURATION #
-# ================================ #
+class RelationalDatabaseConfig:
+    def __init__(self):
+        self.host: str = os.getenv("RELATIONAL_DB_HOST", "localhost")
+        self.name: str = os.getenv("RELATIONAL_DB_NAME", "database")
+        self.user: str = os.getenv("RELATIONAL_DB_USER", "user")
+        self.port: int = int(os.getenv("RELATIONAL_DB_PORT", "5432"))
+        self.password: Optional[str] = os.getenv("RELATIONAL_DB_PASSWORD")
+        self.url: Optional[str] = os.getenv("DATABASE_URL")
 
-# For key-value storage (Redis, Memcached, etc.)
-KEY_VALUE_DB_MAX_POOL_SIZE = 10
+relational_db_config = RelationalDatabaseConfig()
 
-# For relational database (PostgreSQL)
-RELATIONAL_DB_MIN_POOL_SIZE = 1
-RELATIONAL_DB_MAX_POOL_SIZE = 10
-RELATIONAL_DB_MAX_QUERIES = 1000
+# ===================================== #
+# ⚙️ DATABASE CONNECTION POOL SETTINGS #
+# ===================================== #
 
-# ================================ #
-# 🛢️ DATABASE URLS                #
-# ================================ #
+class ConnectionPoolConfig:
+    def __init__(self):
+        # Key-value store (e.g., Redis, Memcached)
+        self.key_value_max_pool_size: int = int(os.getenv("KEY_VALUE_DB_MAX_POOL_SIZE", 10))
 
-PG_DB_URL = ConfigUtils.get_postgres_url()
-REDIS_DB_URL = ConfigUtils.get_redis_url()
+        # Relational DB (e.g., PostgreSQL)
+        self.relational_min_pool_size: int = int(os.getenv("RELATIONAL_DB_MIN_POOL_SIZE", 1))
+        self.relational_max_pool_size: int = int(os.getenv("RELATIONAL_DB_MAX_POOL_SIZE", 10))
+        self.relational_max_queries: int = int(os.getenv("RELATIONAL_DB_MAX_QUERIES", 1000))
+
+connection_pool_config = ConnectionPoolConfig()
+
+# ================================= #
+# 🧰 DATABASE MANAGER INSTANTIATION #
+# ================================= #
+
+db_manager = DatabaseManager(
+    key_value_db=RedisManager(),
+    relational_db=PostgresqlManager()
+)

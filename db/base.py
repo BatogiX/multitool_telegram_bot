@@ -38,16 +38,31 @@ class AbstractRelationDatabase(AbstractDatabase):
     """Abstract class for relational databases."""
 
     @abstractmethod
-    async def execute(self, query: str, *args):
+    async def _execute(self, query: str, *args) -> None:
         """Execute an SQL query without returning a result (INSERT, UPDATE, DELETE)."""
         pass
 
     @abstractmethod
-    async def fetch_one(self, query: str, *args):
+    async def _fetch_one(self, query: str, *args) -> any:
         """Get one record from the database."""
         pass
 
     @abstractmethod
-    async def fetch_all(self, query: str, *args):
+    async def _fetch_all(self, query: str, *args) -> any:
         """Get a list of records from the database."""
+        pass
+
+    @abstractmethod
+    async def init_db(self) -> None:
+        """Initialize database."""
+        pass
+
+    @abstractmethod
+    async def user_exists(self, user_id: int) -> bool:
+        """Check if user exists in the database."""
+        pass
+
+    @abstractmethod
+    async def add_user(self, user_id: int, user_name: str, full_name: str) -> None:
+        """Add a new user to the database."""
         pass

@@ -3,6 +3,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 from aiogram.utils.markdown import text
 
+from config import db_manager
 from keyboards import InlineKeyboards
 
 command_router = Router(name=__name__)
@@ -10,6 +11,13 @@ command_router = Router(name=__name__)
 
 @command_router.message(CommandStart())
 async def cmd_start(message: Message):
+    if not await db_manager.relational_db.user_exists(message.from_user.id):
+        await db_manager.relational_db.add_user(
+            message.from_user.id,
+            message.from_user.username,
+            message.from_user.full_name
+        )
+
     inline_keyboard = InlineKeyboards.start_menu_inline_keyboard()
     await message.answer(text="Hello! I'm your friendly bot. How can I assist you today?", reply_markup=inline_keyboard)
 
