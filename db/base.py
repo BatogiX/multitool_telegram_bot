@@ -43,8 +43,13 @@ class AbstractRelationDatabase(AbstractDatabase):
         pass
 
     @abstractmethod
-    async def _fetch_one(self, query: str, *args) -> any:
+    async def _fetch_row(self, query: str, *args) -> any:
         """Get one record from the database."""
+        pass
+
+    @abstractmethod
+    async def _fetch_value(self, query: str, *args) -> any:
+        """Get a single value from the database."""
         pass
 
     @abstractmethod

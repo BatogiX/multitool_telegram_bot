@@ -45,10 +45,15 @@ class PostgresqlManager(AbstractRelationDatabase):
             conn: Connection
             await conn.execute(query, *args)
 
-    async def _fetch_one(self, query: str, *args) -> any:
+    async def _fetch_row(self, query: str, *args) -> any:
         async with self._pool.acquire() as conn:
             conn: Connection
             return await conn.fetchrow(query, *args)
+
+    async def _fetch_value(self, query: str, *args) -> any:
+        async with self._pool.acquire() as conn:
+            conn: Connection
+            return await conn.fetchval(query, *args)
 
     async def _fetch_all(self, query: str, *args) -> any:
         async with self._pool.acquire() as conn:
@@ -61,7 +66,7 @@ class PostgresqlManager(AbstractRelationDatabase):
             CREATE TABLE IF NOT EXISTS public.users
             (
                 user_id bigint NOT NULL,
-                user_name text NOT NULL,
+                user_name text,
                 created_at timestamp without time zone NOT NULL DEFAULT now(),
                 full_name text NOT NULL,
                 CONSTRAINT users_pkey PRIMARY KEY (user_id)
@@ -70,7 +75,7 @@ class PostgresqlManager(AbstractRelationDatabase):
         )
 
     async def user_exists(self, user_id: int) -> bool:
-        return await self._fetch_one(
+        return await self._fetch_value(
             "SELECT EXISTS(SELECT 1 FROM public.users WHERE user_id = $1)", user_id
         )
 
