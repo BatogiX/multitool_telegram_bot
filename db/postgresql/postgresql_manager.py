@@ -3,7 +3,6 @@ import logging
 import asyncpg
 from asyncpg import Pool, Connection
 
-from config import relational_db_config as rdc, connection_pool_config as cpc
 from db.base import AbstractRelationDatabase
 
 
@@ -12,7 +11,9 @@ class PostgresqlManager(AbstractRelationDatabase):
 
     async def connect(self) -> Pool:
         if self._pool is None:
-            if rdc.PG_DB_URL:
+            from config import relational_db_config as rdc, connection_pool_config as cpc
+
+            if rdc.url:
                 self._pool = await asyncpg.create_pool(
                     dsn=rdc.url,
                     min_size=cpc.relational_min_pool_size,

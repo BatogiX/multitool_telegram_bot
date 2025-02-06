@@ -2,7 +2,6 @@ import logging
 
 from redis.asyncio import Redis
 
-from config import key_value_db_config as kdc, connection_pool_config as cpc
 from db.base import AbstractKeyValueDatabase
 
 
@@ -12,6 +11,8 @@ class RedisManager(AbstractKeyValueDatabase):
     @classmethod
     async def connect(cls) -> Redis:
         if not cls._pool:
+            from config import key_value_db_config as kdc, connection_pool_config as cpc
+
             if kdc.url:
                 cls._pool = Redis.from_url(
                 url=kdc.url,
