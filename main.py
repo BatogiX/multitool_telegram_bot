@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
+
 import asyncio
 import logging
 
@@ -6,8 +11,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.redis import RedisStorage
 
-from config import bot_config, db_manager
-from handlers import router as handlers_router
+from src.config import bot_config, db_manager
+from src.handlers import router as handlers_router
 
 
 async def on_startup() -> tuple[Dispatcher, Bot]:
