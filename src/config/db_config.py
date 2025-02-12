@@ -1,5 +1,6 @@
 from typing import Optional
 
+from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from db import DatabaseManager
@@ -40,7 +41,13 @@ class RelationalDatabaseConfig(BaseSettings):
     user: str = "user"
     port: int = 5432
     password: Optional[str] = None
-    url: Optional[str] = None
+    url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "DATABASE_URL",
+            model_config.get("env_prefix") + "URL"
+        )
+    )
 
     min_pool_size: int = 1
     max_pool_size: int = 10

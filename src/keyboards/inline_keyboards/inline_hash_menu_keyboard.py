@@ -1,6 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from models.callback_data import HashMenuCallbackData
 from utils.keyboards_utils import KeyboardsUtils as kbUtil
 
 
