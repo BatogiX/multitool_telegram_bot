@@ -7,7 +7,7 @@ class BotConfig(BaseSettings):
         env_file='.env', env_file_encoding='utf-8', extra="allow"
     )
 
-    token: str = Field(default=..., alias="TOKEN") # Required
+    token: str = Field(default=..., alias="TOKEN")  # Required
     sep: str = " "
 
     @property
@@ -19,5 +19,6 @@ class BotConfig(BaseSettings):
         if self.ADMIN_IDS:
             return frozenset(int(admin_id) for admin_id in self.ADMIN_IDS.split(",") if admin_id.isdigit())
         return frozenset()
+
 
 bot_config = BotConfig()

@@ -1,7 +1,7 @@
 from aiogram import Router
 
-from .start_menu_cmd_handler import command_router
-from .start_menu_cb_handler import callback_router
+from .callback_handler import callback_router
+from .command_handler import command_router
 
 __all__ = "start_menu_router"
 

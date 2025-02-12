@@ -1,8 +1,7 @@
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton
 
-from models.callback_data import StartMenuCallbackData, PasswordManagerCallbackData as PwManCb
-from models.callback_data import HashMenuCallbackData
+from models.callback_data import StartMenuCallbackData, PasswordManagerCallbackData as PwManCb, HashMenuCallbackData
 from models.passwords_record import DecryptedRecord
 
 

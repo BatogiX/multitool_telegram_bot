@@ -1,7 +1,7 @@
 from aiogram import Router
 
-from .hash_menu_cb_handler import callback_router
-from .hash_menu_fsm_handler import fsm_router
+from .callback_handler import callback_router
+from .fsm_handler import fsm_router
 
 __all__ = "hash_menu_router"
 

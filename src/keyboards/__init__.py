@@ -1,6 +1,4 @@
-from .inline_keyboards import InlineHashMenuKeyboard
-from .inline_keyboards import InlinePasswordManagerKeyboard
-from .inline_keyboards import InlineStartMenuKeyboard
+from .inline_keyboards import InlineHashMenuKeyboard, InlinePasswordManagerKeyboard, InlineStartMenuKeyboard
 from .reply_keyboards import PassClass
 
 __all__ = (

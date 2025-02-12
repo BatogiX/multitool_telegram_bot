@@ -48,7 +48,7 @@ class PostgresqlManager(AbstractRelationDatabase):
     async def _fetch_row(self, query: str, *args) -> Record | None:
         async with self._pool.acquire() as conn:
             conn: Connection
-            return await conn.fetchrow(query,*args)
+            return await conn.fetchrow(query, *args)
 
     async def _fetch_value(self, query: str, *args) -> any:
         async with self._pool.acquire() as conn:
@@ -58,7 +58,7 @@ class PostgresqlManager(AbstractRelationDatabase):
     async def _fetch_all(self, query: str, *args) -> list[Record | None]:
         async with self._pool.acquire() as conn:
             conn: Connection
-            return await conn.fetch(query,*args)
+            return await conn.fetch(query, *args)
 
     async def init_db(self) -> None:
         await self._execute(

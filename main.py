@@ -12,7 +12,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.redis import RedisStorage
 
 from config import bot_config, db_manager
-from handlers import router as handlers_router
+from handlers import handlers_router
 
 
 async def on_startup() -> tuple[Dispatcher, Bot]:

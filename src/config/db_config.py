@@ -7,6 +7,7 @@ from db import DatabaseManager
 from db.postgresql import PostgresqlManager
 from db.redis import RedisManager
 
+
 # ==================== #
 # 🔥 DATABASE SETTINGS #
 # ==================== #
@@ -52,6 +53,7 @@ class RelationalDatabaseConfig(BaseSettings):
     min_pool_size: int = 1
     max_pool_size: int = 10
     max_queries: int = 1000
+
 
 # ================================= #
 # 🧰 DATABASE MANAGER INSTANTIATION #

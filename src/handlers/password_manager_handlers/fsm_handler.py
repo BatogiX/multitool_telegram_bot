@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from cryptography.exceptions import InvalidTag
 
-from config import db_manager
+from config import db_manager, bot_config as c
 from keyboards import InlineKeyboards
 from models.fsm_states import PasswordManagerStates
 from models.passwords_record import DecryptedRecord, EncryptedRecord
@@ -12,7 +12,6 @@ from models.passwords_record.weak_password_exception import WeakPasswordExceptio
 from utils import BotUtils
 from utils.fsm_data_utils import FSMDataUtils
 from utils.password_manager_utils import PasswordManagerUtils
-from config import bot_config as c
 
 fsm_router = Router(name=__name__)
 
@@ -24,7 +23,8 @@ async def _check_master_password(master_password: str, message: Message) -> byte
         await message.answer(str(e), reply_markup=InlineKeyboards.return_to_passwd_man())
         return None
 
-    rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_passwords_record(message.from_user.id)
+    rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_passwords_record(
+        message.from_user.id)
     salt: bytes = await db_manager.relational_db.get_salt(message.from_user.id)
     key: bytes = PasswordManagerUtils.derive_key(master_password, salt)
     if rand_encrypted_record:
@@ -55,7 +55,8 @@ async def _create_password_record(login: str, password: str, service: str, messa
 
 
 async def _entering_service(message: Message, service: str, key: bytes) -> None:
-    encrypted_record: list[EncryptedRecord] = await db_manager.relational_db.get_passwords_records(message.from_user.id, service)
+    encrypted_record: list[EncryptedRecord] = await db_manager.relational_db.get_passwords_records(message.from_user.id,
+                                                                                                   service)
     decrypted_data: list[DecryptedRecord] = []
     for data in encrypted_record:
         decrypted_data.append(PasswordManagerUtils.decrypt_passwords_record(data.iv, data.tag, data.ciphertext, key))
@@ -260,7 +261,8 @@ async def delete_password(message: Message, state: FSMContext):
 
     decrypted_records: list[DecryptedRecord] = []
     for data in encrypted_records:
-        decrypted_record: DecryptedRecord = PasswordManagerUtils.decrypt_passwords_record(data.iv, data.tag, data.ciphertext, key)
+        decrypted_record: DecryptedRecord = PasswordManagerUtils.decrypt_passwords_record(data.iv, data.tag,
+                                                                                          data.ciphertext, key)
         if decrypted_record.login == login and decrypted_record.password == password:
             await db_manager.relational_db.delete_passwords_record(message.from_user.id, service, data.ciphertext)
             continue

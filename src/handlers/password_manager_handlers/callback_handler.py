@@ -134,7 +134,7 @@ async def delete_services(query: CallbackQuery, state: FSMContext):
 
 
 @callback_router.callback_query(PwManCb.DeleteService.filter())
-async def delete_service(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.DeleteService,):
+async def delete_service(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.DeleteService, ):
     service_to_delete = callback_data.service
     await state.set_state(PasswordManagerStates.ConfirmDeletingService)
     await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
