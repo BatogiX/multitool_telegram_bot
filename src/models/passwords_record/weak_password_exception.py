@@ -1,0 +1,2 @@
+class WeakPasswordException(Exception):
+    pass

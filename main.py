@@ -6,19 +6,19 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.redis import RedisStorage
 
-from config import TOKEN, db_manager
+from config import bot_config, db_manager
 from handlers import router as handlers_router
 
 
-async def on_startup() -> tuple[Bot, Dispatcher]:
+async def on_startup() -> tuple[Dispatcher, Bot]:
     logging.info("Bot is starting up...")
     await db_manager.initialize()
 
     dispatcher = Dispatcher(storage=RedisStorage(await db_manager.key_value_db.connect()))
     dispatcher.include_router(handlers_router)
-    bot = Bot(token=TOKEN, default_bot_properties=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(token=bot_config.token, default_bot_properties=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
-    return bot, dispatcher
+    return dispatcher, bot
 
 
 async def on_shutdown(bot: Bot) -> None:
@@ -28,7 +28,7 @@ async def on_shutdown(bot: Bot) -> None:
 
 
 async def main() -> None:
-    bot, dispatcher = await on_startup()
+    dispatcher, bot = await on_startup()
     try:
         await dispatcher.start_polling(bot)
     except (KeyboardInterrupt, asyncio.CancelledError):

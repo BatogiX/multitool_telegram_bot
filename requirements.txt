@@ -4,3 +4,7 @@ aiogram~=3.17.0
 aiofiles~=24.1.0
 python-dotenv~=1.0.1
 asyncio~=3.4.3
+argon2-cffi==23.1.0
+cryptography==44.0.0
+pydantic~=2.10.5
+pydantic-settings~=2.7.1
