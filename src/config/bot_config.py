@@ -1,7 +1,6 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-sep = " "
 
 class BotConfig(BaseSettings):
     model_config = SettingsConfigDict(
@@ -9,15 +8,16 @@ class BotConfig(BaseSettings):
     )
 
     token: str = Field(default=..., alias="TOKEN") # Required
-    admin_ids_str: str = Field(default="", alias="ADMIN_IDS")
+    sep: str = " "
 
     @property
-    def admin_ids(self) -> frozenset[int]:
-        if self.admin_ids_str:
-            return frozenset(int(admin_id) for admin_id in self.admin_ids_str.split(",") if admin_id.isdigit())
+    def admins(self) -> frozenset[int] | frozenset[None]:
+        """
+        Retrieves the admin IDs as a frozenset of integers from the environment variable
+        'ADMIN_IDS', which is a comma-separated string.
+        """
+        if self.ADMIN_IDS:
+            return frozenset(int(admin_id) for admin_id in self.ADMIN_IDS.split(",") if admin_id.isdigit())
         return frozenset()
-
-    SEP: str = " "
-
 
 bot_config = BotConfig()

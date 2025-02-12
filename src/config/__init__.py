@@ -1,6 +1,9 @@
-from .bot_config import sep, bot_config
-from .db_config import KeyValueDatabaseConfig, RelationalDatabaseConfig, db_manager
-from .password_manager_config import PasswordManagerConfig
+from .bot_config import bot_config
+from .db_config import db_manager
+from .password_manager_config import pm_config
 
-__all__ = ["bot_config", "KeyValueDatabaseConfig", "RelationalDatabaseConfig",
-           "db_manager", "PasswordManagerConfig", "sep"]
+__all__ = (
+    "bot_config",
+    "db_manager",
+    "pm_config"
+)

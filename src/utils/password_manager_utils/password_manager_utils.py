@@ -1,4 +1,3 @@
-import os
 import re
 import secrets
 
@@ -7,7 +6,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes, AEADEncryptionContext, CipherContext
 
-from config import PasswordManagerConfig as pmConfig, sep
+from config import pm_config, bot_config as c
 from models.passwords_record import EncryptedRecord, DecryptedRecord
 from models.passwords_record.weak_password_exception import WeakPasswordException
 
@@ -16,13 +15,13 @@ class PasswordManagerUtils:
     """Class for passwords_record manager utils"""
 
     @staticmethod
-    def gen_salt(size: int = pmConfig.SALT_LEN) -> bytes:
-        """Generate 128-bit salt"""
+    def gen_salt(size: int = pm_config.SALT_LEN) -> bytes:
+        """Generate salt (128-bit by default)"""
         return secrets.token_bytes(size)
 
     @staticmethod
-    def _gen_iv(size: int = pmConfig.GCM_IV_SIZE) -> bytes:
-        return os.urandom(size)
+    def _gen_iv(size: int = pm_config.GCM_IV_SIZE) -> bytes:
+        return secrets.token_bytes(size)
 
     @staticmethod
     def validate_master_password(master_password: str) -> bool:
@@ -47,10 +46,10 @@ class PasswordManagerUtils:
     @staticmethod
     def derive_key(
             master_password: str, salt: bytes,
-            time_cost: int = pmConfig.ARGON2.TIME_COST,
-            memory_cost: int = pmConfig.ARGON2.MEMORY_COST,
-            parallelism: int = pmConfig.ARGON2.PARALLELISM,
-            length: int = pmConfig.ARGON2.HASH_LEN
+            time_cost: int = pm_config.ARGON2.TIME_COST,
+            memory_cost: int = pm_config.ARGON2.MEMORY_COST,
+            parallelism: int = pm_config.ARGON2.PARALLELISM,
+            length: int = pm_config.ARGON2.HASH_LEN
     ) -> bytes:
         return hash_secret_raw(
             secret=master_password.encode(),
@@ -83,7 +82,7 @@ class PasswordManagerUtils:
         except InvalidTag:
             raise
         else:
-            login, password = decrypted_record.split(sep)
+            login, password = decrypted_record.split(c.sep)
             return DecryptedRecord(
                 login=login,
                 password=password

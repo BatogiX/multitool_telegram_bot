@@ -37,17 +37,20 @@ async def create_service(query: CallbackQuery, state: FSMContext):
     await state.set_state(PasswordManagerStates.CreateService)
     await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
 
-    text = (
+    warning: str = (
         "❗WARNING❗\n"
         "If you lose your Master Password you won't be able to decrypt your passwords. "
         "We do not store your Master Password and key for encryption/decryption in any way, "
         "so we won't be able to recover it for you.\n\n"
         "Your Master Password must be at least 12 characters long and contain at least one number, "
         "one uppercase letter, one lowercase letter and one special character.\n\n"
-        "Enter <Master Password> <service name> <login> <password>"
     )
+
+    input_format: str = "Enter <Master Password> <service name> <login> <password>"
+    await FSMDataUtils.set_pm_input_format_text(state, input_format)
+
     await query.message.edit_text(
-        text=text,
+        text=warning + input_format,
         reply_markup=InlineKeyboards.return_to_passwd_man()
     )
 
@@ -73,11 +76,12 @@ async def create_password(query: CallbackQuery, callback_data: PwManCb.CreatePas
     await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
     await FSMDataUtils.set_service(state, service)
 
-    text = (
+    input_format = (
         "Enter your <Master Password> <login> <password>"
     )
+    await FSMDataUtils.set_pm_input_format_text(state, input_format)
     await query.message.edit_text(
-        text=text,
+        text=input_format,
         reply_markup=InlineKeyboards.return_to_passwd_man()
     )
 
@@ -151,11 +155,12 @@ async def delete_password(query: CallbackQuery, state: FSMContext):
     await state.set_state(PasswordManagerStates.ConfirmDeletingPassword)
     await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
 
-    text = (
+    input_format = (
         "Are you sure you want to delete this password?\n\n"
         "If yes - enter your <Master Password> <login> <password>"
     )
+    await FSMDataUtils.set_pm_input_format_text(state, input_format)
     await query.message.edit_text(
-        text=text,
+        text=input_format,
         reply_markup=InlineKeyboards.return_to_passwd_man()
     )

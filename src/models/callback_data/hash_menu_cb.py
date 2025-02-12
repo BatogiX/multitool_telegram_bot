@@ -2,9 +2,10 @@ from enum import Enum
 
 from aiogram.filters.callback_data import CallbackData
 
-from config import sep as sep
+from config import bot_config as c
 
-class HashMenuCallbackData(CallbackData, prefix="hash_menu", sep=sep):
+
+class HashMenuCallbackData(CallbackData, prefix="hash_menu", sep=c.sep):
     action: str
 
     class hash_types(str, Enum):

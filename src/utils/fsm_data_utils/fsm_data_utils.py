@@ -1,6 +1,6 @@
 from aiogram.fsm.context import FSMContext
 
-from models.fsm_data import MessageToDelete, Service, HashType
+from models.fsm_data import MessageToDelete, Service, HashType, PasswordManagerInputFormat
 
 
 class FSMDataUtils:
@@ -32,3 +32,11 @@ class FSMDataUtils:
     @classmethod
     async def get_hash_type(cls, state: FSMContext) -> str:
         return await cls._get_data(state, HashType.key)
+
+    @classmethod
+    async def set_pm_input_format_text(cls, state: FSMContext, text: str) -> None:
+        await state.update_data(PasswordManagerInputFormat(text))
+
+    @classmethod
+    async def get_pm_input_format_text(cls, state: FSMContext) -> str:
+        return await cls._get_data(state, PasswordManagerInputFormat.key)

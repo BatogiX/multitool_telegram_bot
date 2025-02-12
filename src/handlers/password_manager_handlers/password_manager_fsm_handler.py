@@ -12,12 +12,12 @@ from models.passwords_record.weak_password_exception import WeakPasswordExceptio
 from utils import BotUtils
 from utils.fsm_data_utils import FSMDataUtils
 from utils.password_manager_utils import PasswordManagerUtils
-from config import sep
+from config import bot_config as c
 
 fsm_router = Router(name=__name__)
 
 
-async def check_master_password(master_password: str, message: Message) -> bytes | None:
+async def _check_master_password(master_password: str, message: Message) -> bytes | None:
     try:
         PasswordManagerUtils.validate_master_password(master_password)
     except WeakPasswordException as e:
@@ -41,8 +41,8 @@ async def check_master_password(master_password: str, message: Message) -> bytes
     return key
 
 
-async def create_password_record(login: str, password: str, service: str, message: Message, key: bytes) -> None:
-    data_to_encrypt: str = f"{login}{sep}{password}"
+async def _create_password_record(login: str, password: str, service: str, message: Message, key: bytes) -> None:
+    data_to_encrypt: str = f"{login}{c.sep}{password}"
     encrypted_record: EncryptedRecord = PasswordManagerUtils.encrypt_passwords_record(data_to_encrypt, key)
 
     await db_manager.relational_db.create_password_record(
@@ -54,7 +54,7 @@ async def create_password_record(login: str, password: str, service: str, messag
     )
 
 
-async def entering_service(message: Message, service: str, key: bytes) -> None:
+async def _entering_service(message: Message, service: str, key: bytes) -> None:
     encrypted_record: list[EncryptedRecord] = await db_manager.relational_db.get_passwords_records(message.from_user.id, service)
     decrypted_data: list[DecryptedRecord] = []
     for data in encrypted_record:
@@ -72,18 +72,39 @@ async def entering_service(message: Message, service: str, key: bytes) -> None:
     )
 
 
+async def _validate_user_input(message: Message, state: FSMContext, maxsplit: int) -> tuple:
+    try:
+        split_result = tuple(message.text.split(sep=c.sep))
+        if len(split_result) != maxsplit:
+            raise ValueError
+    except ValueError:
+        input_format = await FSMDataUtils.get_pm_input_format_text(state)
+        message = await message.answer(
+            text=f"Wrong format\n\n{input_format}",
+            reply_markup=InlineKeyboards.return_to_passwd_man()
+        )
+        await FSMDataUtils.set_message_to_delete(state, message.message_id)
+        return ()
+    else:
+        await state.set_state(None)
+        return split_result
+
+
 @fsm_router.message(StateFilter(PasswordManagerStates.CreateService), F.text)
 async def create_service(message: Message, state: FSMContext):
-    await state.set_state(None)
     await BotUtils.delete_fsm_message(state, message)
     await message.delete()
 
-    master_password, service, login, password = message.text.split()
-    key: bytes = await check_master_password(master_password, message)
+    result: tuple = await _validate_user_input(message, state, 4)
+    if not result:
+        return
+
+    master_password, service, login, password = result
+    key: bytes = await _check_master_password(master_password, message)
     if not key:
         return
 
-    await create_password_record(
+    await _create_password_record(
         login=login,
         password=password,
         service=service,
@@ -91,7 +112,7 @@ async def create_service(message: Message, state: FSMContext):
         key=key
     )
 
-    data: list[DecryptedRecord] = [DecryptedRecord(login, password)]
+    data: list[DecryptedRecord] = [DecryptedRecord(login=login, password=password)]
     text: str = (
         f"*Service:* {service}\n"
         "Choose your login to see password"
@@ -107,18 +128,20 @@ async def create_service(message: Message, state: FSMContext):
 
 @fsm_router.message(StateFilter(PasswordManagerStates.CreatePassword), F.text)
 async def create_password(message: Message, state: FSMContext):
-    await state.set_state(None)
     await BotUtils.delete_fsm_message(state, message)
     await message.delete()
 
+    result: tuple = await _validate_user_input(message, state, 3)
+    if not result:
+        return
 
-    master_password, login, password = message.text.split()
-    key: bytes = await check_master_password(master_password, message)
+    master_password, login, password = result
+    key: bytes = await _check_master_password(master_password, message)
     if not key:
         return
 
     service: str = await FSMDataUtils.get_service(state)
-    await create_password_record(
+    await _create_password_record(
         login=login,
         password=password,
         service=service,
@@ -126,7 +149,7 @@ async def create_password(message: Message, state: FSMContext):
         key=key
     )
 
-    await entering_service(message, service, key)
+    await _entering_service(message, service, key)
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.EnteringService), F.text)
@@ -136,12 +159,12 @@ async def service_enter(message: Message, state: FSMContext):
     await message.delete()
 
     master_password: str = message.text
-    key: bytes = await check_master_password(master_password, message)
+    key: bytes = await _check_master_password(master_password, message)
     if not key:
         return
 
     service: str = await FSMDataUtils.get_service(state)
-    await entering_service(message, service, key)
+    await _entering_service(message, service, key)
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ChangeService), F.text)
@@ -172,7 +195,7 @@ async def delete_services(message: Message, state: FSMContext):
     await message.delete()
 
     master_password: str = message.text
-    key: bytes = await check_master_password(master_password, message)
+    key: bytes = await _check_master_password(master_password, message)
     if not key:
         return
 
@@ -217,12 +240,15 @@ async def delete_service(message: Message, state: FSMContext):
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ConfirmDeletingPassword), F.text)
 async def delete_password(message: Message, state: FSMContext):
-    await state.set_state(None)
     await BotUtils.delete_fsm_message(state, message)
     await message.delete()
 
-    master_password, login, password = message.text.split(sep)
-    key: bytes = await check_master_password(master_password, message)
+    result: tuple = await _validate_user_input(message, state, 3)
+    if not result:
+        return
+
+    master_password, login, password = result
+    key: bytes = await _check_master_password(master_password, message)
     if not key:
         return
 
