@@ -16,6 +16,8 @@ class RedisManager(AbstractKeyValueDatabase):
                     max_connections=self._c.max_pool_size,
                     decode_responses=True,
                 )
+                await self._pool.ping()
+                logging.info("Connected to Redis via URL")
             else:
                 self._pool = Redis(
                     host=self._c.host,
@@ -25,8 +27,8 @@ class RedisManager(AbstractKeyValueDatabase):
                     max_connections=self._c.max_pool_size,
                     decode_responses=True,
                 )
-            await self._pool.ping()
-            logging.info("Connected to Redis")
+                await self._pool.ping()
+                logging.info("Connected to Redis")
         return self._pool
 
     async def disconnect(self) -> None:

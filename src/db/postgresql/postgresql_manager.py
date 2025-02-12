@@ -19,6 +19,7 @@ class PostgresqlManager(AbstractRelationDatabase):
                     max_size=self._c.max_pool_size,
                     max_queries=self._c.max_queries
                 )
+                logging.info("Connected to PostgreSQL via URL")
             else:
                 self._pool = await asyncpg.create_pool(
                     host=self._c.host,
@@ -30,7 +31,7 @@ class PostgresqlManager(AbstractRelationDatabase):
                     max_size=self._c.max_pool_size,
                     max_queries=self._c.max_queries
                 )
-            logging.info("Connected to PostgreSQL")
+                logging.info("Connected to PostgreSQL")
         return self._pool
 
     async def disconnect(self) -> None:
