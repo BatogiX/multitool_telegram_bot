@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
@@ -6,36 +6,37 @@ from config import db_manager
 from keyboards import InlineKeyboards
 from models.callback_data import PasswordManagerCallbackData as PwManCb
 from models.fsm_states import PasswordManagerStates
-from utils.filters import CbMagicFilters
 from utils.fsm_data_utils import FSMDataUtils
 
 callback_router = Router(name=__name__)
 
 
-@callback_router.callback_query(CbMagicFilters.PasswordManager_ENTER(F.data))
-async def enter_password_manager_menu(query: CallbackQuery, state: FSMContext):
+@callback_router.callback_query(PwManCb.Enter.filter())
+async def enter_password_manager_menu(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.Enter):
     if await state.get_state() in PasswordManagerStates:
         await state.set_state(None)
 
-    services = await db_manager.relational_db.get_services(query.from_user.id)
+    offset = callback_data.services_offset
+    services = await db_manager.relational_db.get_services(query.from_user.id, offset)
     if services:
         text = "Choose service"
         await query.message.edit_text(
             text=text,
-            reply_markup=InlineKeyboards.passwd_man_services(services)
+            reply_markup=InlineKeyboards.passwd_man_services(services=services, offset=offset)
         )
     else:
         text = "You don't have any services yet. Create one now?"
         await query.message.edit_text(
             text=text,
-            reply_markup=InlineKeyboards.passwd_man_services()
+            reply_markup=InlineKeyboards.passwd_man_services(services=[], offset=offset)
         )
 
 
-@callback_router.callback_query(CbMagicFilters.PasswordManager_CREATE_SERVICE(F.data))
-async def create_service(query: CallbackQuery, state: FSMContext):
+@callback_router.callback_query(PwManCb.CreateService.filter())
+async def create_service(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.CreateService, ):
     await state.set_state(PasswordManagerStates.CreateService)
     await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
+    offset = callback_data.services_offset
 
     warning: str = (
         "❗WARNING❗\n"
@@ -51,21 +52,38 @@ async def create_service(query: CallbackQuery, state: FSMContext):
 
     await query.message.edit_text(
         text=warning + input_format,
-        reply_markup=InlineKeyboards.return_to_passwd_man()
+        reply_markup=InlineKeyboards.return_to_passwd_man(offset)
     )
 
 
-@callback_router.callback_query(PwManCb.EnteringService.filter())
-async def service_enter(query: CallbackQuery, callback_data: PwManCb.EnteringService, state: FSMContext):
-    service = callback_data.service
+@callback_router.callback_query(PwManCb.DeleteServices.filter())
+async def delete_services(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.DeleteServices):
+    await state.set_state(PasswordManagerStates.ConfirmDeletingServices)
+    await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
+    offset = callback_data.services_offset
+
+    text = (
+        "Are you sure you want to delete all services?\n\n"
+        "If yes - enter your Master Password"
+    )
+    await query.message.edit_text(
+        text=text,
+        reply_markup=InlineKeyboards.return_to_passwd_man(offset)
+    )
+
+
+@callback_router.callback_query(PwManCb.EnterService.filter())
+async def service_enter(query: CallbackQuery, callback_data: PwManCb.EnterService, state: FSMContext):
+    service, offset = callback_data.service, callback_data.pwd_offset
     await state.set_state(PasswordManagerStates.EnteringService)
     await FSMDataUtils.set_service(state, service)
     await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
+    await FSMDataUtils.set_pm_pwd_offset(state, offset)
 
     text = "Enter your Master Password"
     await query.message.edit_text(
         text=text,
-        reply_markup=InlineKeyboards.return_to_passwd_man()
+        reply_markup=InlineKeyboards.return_to_passwd_man(offset=0)
     )
 
 
@@ -82,12 +100,12 @@ async def create_password(query: CallbackQuery, callback_data: PwManCb.CreatePas
     await FSMDataUtils.set_pm_input_format_text(state, input_format)
     await query.message.edit_text(
         text=input_format,
-        reply_markup=InlineKeyboards.return_to_passwd_man()
+        reply_markup=InlineKeyboards.return_to_passwd_man(offset=0)
     )
 
 
-@callback_router.callback_query(PwManCb.EnteringPassword.filter())
-async def password_enter(query: CallbackQuery, callback_data: PwManCb.EnteringPassword, state: FSMContext):
+@callback_router.callback_query(PwManCb.EnterPassword.filter())
+async def password_enter(query: CallbackQuery, callback_data: PwManCb.EnterPassword, state: FSMContext):
     login, password = callback_data.login, callback_data.password
     service: str = await FSMDataUtils.get_service(state)
 
@@ -99,7 +117,7 @@ async def password_enter(query: CallbackQuery, callback_data: PwManCb.EnteringPa
 
     await query.message.edit_text(
         text=text,
-        reply_markup=InlineKeyboards.passwd_man_password(),
+        reply_markup=InlineKeyboards.passwd_man_password(offset=0),
         parse_mode="Markdown"
     )
 
@@ -114,22 +132,7 @@ async def change_service(query: CallbackQuery, state: FSMContext, callback_data:
     text = "Enter new service name"
     await query.message.edit_text(
         text=text,
-        reply_markup=InlineKeyboards.return_to_passwd_man()
-    )
-
-
-@callback_router.callback_query(CbMagicFilters.PasswordManager_DELETE_SERVICES(F.data))
-async def delete_services(query: CallbackQuery, state: FSMContext):
-    await state.set_state(PasswordManagerStates.ConfirmDeletingServices)
-    await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
-
-    text = (
-        "Are you sure you want to delete all services?\n\n"
-        "If yes - enter your Master Password"
-    )
-    await query.message.edit_text(
-        text=text,
-        reply_markup=InlineKeyboards.return_to_passwd_man()
+        reply_markup=InlineKeyboards.return_to_passwd_man(offset=0)
     )
 
 
@@ -146,11 +149,11 @@ async def delete_service(query: CallbackQuery, state: FSMContext, callback_data:
     )
     await query.message.edit_text(
         text=text,
-        reply_markup=InlineKeyboards.return_to_passwd_man()
+        reply_markup=InlineKeyboards.return_to_passwd_man(offset=0)
     )
 
 
-@callback_router.callback_query(CbMagicFilters.PasswordManager_DELETE_PASSWORD(F.data))
+@callback_router.callback_query(PwManCb.DeletePassword.filter())
 async def delete_password(query: CallbackQuery, state: FSMContext):
     await state.set_state(PasswordManagerStates.ConfirmDeletingPassword)
     await FSMDataUtils.set_message_to_delete(state, query.message.message_id)
@@ -162,5 +165,5 @@ async def delete_password(query: CallbackQuery, state: FSMContext):
     await FSMDataUtils.set_pm_input_format_text(state, input_format)
     await query.message.edit_text(
         text=input_format,
-        reply_markup=InlineKeyboards.return_to_passwd_man()
+        reply_markup=InlineKeyboards.return_to_passwd_man(offset=0)
     )

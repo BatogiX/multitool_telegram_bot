@@ -9,6 +9,8 @@ class BotConfig(BaseSettings):
 
     token: str = Field(default=..., alias="TOKEN")  # Required
     sep: str = " "
+    dynamic_buttons_limit: int = 10
+    dynamical_buttons_per_row: int = 2
 
     @property
     def admins(self) -> frozenset[int] | frozenset[None]:

@@ -1,6 +1,9 @@
+from typing import Callable
+
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton
 
+from config import bot_config as c
 from models.callback_data import StartMenuCallbackData, PasswordManagerCallbackData as PwManCb, HashMenuCallbackData
 from models.passwords_record import DecryptedRecord
 
@@ -20,10 +23,11 @@ class KeyboardsUtils:
         )
 
     @classmethod
-    def gen_return_to_passwd_man_button(cls, text: str = "Back to Password Manager") -> InlineKeyboardButton:
+    def gen_return_to_passwd_man_button(cls, offset: int,
+                                        text: str = "Back to Password Manager") -> InlineKeyboardButton:
         return cls._create_button(
             text=f"{cls.return_char} {text}",
-            callback_data=PwManCb.PasswordManager(action=PwManCb.PasswordManager.ACTIONS.ENTER)
+            callback_data=PwManCb.Enter(services_offset=offset)
         )
 
     @classmethod
@@ -53,14 +57,14 @@ class KeyboardsUtils:
     def gen_password_manager_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text="🔐 Password manager",
-            callback_data=PwManCb.PasswordManager(action=PwManCb.PasswordManager.ACTIONS.ENTER)
+            callback_data=PwManCb.Enter(services_offset=0)
         )
 
     @classmethod
-    def gen_create_service_button(cls) -> InlineKeyboardButton:
+    def gen_create_service_button(cls, offset: int) -> InlineKeyboardButton:
         create_new_service_button = cls._create_button(
             text="➕ New service",
-            callback_data=PwManCb.PasswordManager(action=PwManCb.PasswordManager.ACTIONS.CREATE_SERVICE)
+            callback_data=PwManCb.Enter(services_offset=offset)
         )
         return create_new_service_button
 
@@ -73,28 +77,40 @@ class KeyboardsUtils:
         return create_new_service_button
 
     @classmethod
-    def gen_delete_services_button(cls, services: list[str]) -> list[InlineKeyboardButton] | list[None]:
-        return [cls._create_button(
+    def gen_delete_services_button(cls, services: list[str], offset: int) -> InlineKeyboardButton | None:
+        return cls._create_button(
             text="❌ Delete services",
-            callback_data=PwManCb.PasswordManager(action=PwManCb.PasswordManager.ACTIONS.DELETE_SERVICES)
-        )] if services else []
+            callback_data=PwManCb.Enter(services_offset=offset)
+        ) if services else None
 
     @classmethod
-    def gen_service_buttons(cls, services: list[str]) -> list[InlineKeyboardButton]:
+    def _gen_dynamic_buttons(cls, items: list, create_button_fn: Callable) -> list[list[InlineKeyboardButton]]:
         return [
-            cls._create_button(text=service, callback_data=PwManCb.EnteringService(service=service))
-            for service in services
+            [
+                create_button_fn(items[i + j])
+                for j in range(min(c.dynamical_buttons_per_row, len(items) - i))
+            ] for i in range(0, len(items), c.dynamical_buttons_per_row)
         ]
 
     @classmethod
-    def gen_password_buttons(cls, decrypted_records: list[DecryptedRecord]) -> list[InlineKeyboardButton]:
-        return [
-            cls._create_button(
-                text=data.login,
-                callback_data=PwManCb.EnteringPassword(login=data.login, password=data.password)
+    def gen_service_buttons(cls, services: list[str]) -> list[list[InlineKeyboardButton]]:
+        def create_button(service: str) -> InlineKeyboardButton:
+            return cls._create_button(
+                text=service,
+                callback_data=PwManCb.EnterService(service=service, pwd_offset=0)
             )
-            for data in decrypted_records
-        ]
+
+        return cls._gen_dynamic_buttons(services, create_button)
+
+    @classmethod
+    def gen_password_buttons(cls, decrypted_records: list[DecryptedRecord]) -> list[list[InlineKeyboardButton]]:
+        def create_button(record: DecryptedRecord) -> InlineKeyboardButton:
+            return cls._create_button(
+                text=record.login,
+                callback_data=PwManCb.EnterPassword(login=record.login, password=record.password)
+            )
+
+        return cls._gen_dynamic_buttons(decrypted_records, create_button)
 
     @classmethod
     def gen_change_service_button(cls, service: str) -> InlineKeyboardButton:
@@ -111,10 +127,10 @@ class KeyboardsUtils:
         )
 
     @classmethod
-    def gen_delete_password_button(cls) -> InlineKeyboardButton:
+    def gen_delete_password_button(cls, offset: int) -> InlineKeyboardButton:
         return cls._create_button(
             text="❌ Delete this password",
-            callback_data=PwManCb.PasswordManager(action=PwManCb.PasswordManager.ACTIONS.DELETE_PASSWORD)
+            callback_data=PwManCb.Enter(services_offset=offset)
         )
 
     @classmethod
@@ -123,3 +139,38 @@ class KeyboardsUtils:
             text="🔄️",
             callback_data=HashMenuCallbackData(action=hash_type)
         )
+
+    @classmethod
+    def gen_previous_page_services_button(cls, offset: int) -> InlineKeyboardButton | None:
+        return cls._create_button(
+            text="◀️",
+            callback_data=PwManCb.Enter(services_offset=offset - c.dynamic_buttons_limit)
+        ) if offset > 0 else None
+
+    @classmethod
+    def gen_next_page_services_button(cls, services: list[str], offset: int) -> InlineKeyboardButton | None:
+        if len(services) > c.dynamic_buttons_limit:
+            services.pop()
+            return cls._create_button(
+                text="▶️",
+                callback_data=PwManCb.Enter(services_offset=offset + c.dynamic_buttons_limit)
+            )
+        return None
+
+    @classmethod
+    def gen_previous_page_passwords_button(cls, offset: int, service: str) -> InlineKeyboardButton | None:
+        return cls._create_button(
+            text="◀️",
+            callback_data=PwManCb.EnterService(service=service, pwd_offset=offset - c.dynamic_buttons_limit)
+        ) if offset > 0 else None
+
+    @classmethod
+    def gen_next_page_passwords_button(cls, decrypted_records: list[DecryptedRecord], offset: int,
+                                       service: str) -> InlineKeyboardButton | None:
+        if len(decrypted_records) > c.dynamic_buttons_limit:
+            decrypted_records.pop()
+            return cls._create_button(
+                text="▶️",
+                callback_data=PwManCb.EnterService(service=service, pwd_offset=offset + c.dynamic_buttons_limit)
+            )
+        return None

@@ -1,24 +1,23 @@
-from enum import Enum
-
 from aiogram.filters.callback_data import CallbackData
 
 from config import bot_config as c
 
 
 class PasswordManagerCallbackData:
-    class PasswordManager(CallbackData, prefix="pm", sep=c.sep):
-        action: str
+    class Enter(CallbackData, prefix="pm_enter", sep=c.sep):
+        services_offset: int
 
-        class ACTIONS(str, Enum):
-            ENTER = "enter"
-            CREATE_SERVICE = "new_service"
-            DELETE_SERVICES = "del_services"
-            DELETE_PASSWORD = "del_pw"
+    class CreateService(CallbackData, prefix="pm_create_service", sep=c.sep):
+        services_offset: int
 
-    class EnteringService(CallbackData, prefix="pm_services", sep=c.sep):
+    class DeleteServices(CallbackData, prefix="pm_delete_services", sep=c.sep):
+        services_offset: int
+
+    class EnterService(CallbackData, prefix="pm_service", sep=c.sep):
         service: str
+        pwd_offset: int
 
-    class EnteringPassword(CallbackData, prefix="pm_pw", sep=c.sep):
+    class EnterPassword(CallbackData, prefix="pm_pwd", sep=c.sep):
         login: str
         password: str
 
@@ -29,4 +28,7 @@ class PasswordManagerCallbackData:
         service: str
 
     class DeleteService(CallbackData, prefix="pm_delete_service", sep=c.sep):
+        service: str
+
+    class DeletePassword(CallbackData, prefix="pm_delete_password", sep=c.sep):
         service: str

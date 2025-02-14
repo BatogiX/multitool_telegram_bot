@@ -3,6 +3,7 @@ import logging
 import asyncpg
 from asyncpg import Pool, Connection, Record
 
+from config import bot_config as c
 from db.base import AbstractRelationDatabase
 from models.passwords_record import EncryptedRecord
 
@@ -100,12 +101,12 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, user_name, full_name, salt
         )
 
-    async def get_services(self, user_id: int) -> list[str]:
+    async def get_services(self, user_id: int, offset: int, limit: int = c.dynamic_buttons_limit + 1) -> list[str]:
         records: list[Record] = await self._fetch_all(
-            "SELECT service FROM public.passwords WHERE user_id = $1",
-            user_id
+            "SELECT DISTINCT service FROM public.passwords WHERE user_id = $1 ORDER BY service OFFSET $2 LIMIT $3",
+            user_id, offset, limit
         )
-        return list(dict.fromkeys(record.get("service") for record in records))
+        return [record.get("service") for record in records]
 
     async def get_salt(self, user_id: int) -> bytes:
         return await self._fetch_value(
@@ -120,10 +121,11 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, service, iv, tag, ciphertext
         )
 
-    async def get_passwords_records(self, user_id: int, service: str) -> list[EncryptedRecord]:
+    async def get_passwords_records(self, user_id: int, service: str, offset: int,
+                                    limit: int = c.dynamic_buttons_limit + 1) -> list[EncryptedRecord]:
         records: list[Record] = await self._fetch_all(
-            "SELECT iv, tag, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2",
-            user_id, service
+            "SELECT iv, tag, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
+            user_id, service, offset, limit
         )
         return [EncryptedRecord(
             iv=record.get("iv"),
