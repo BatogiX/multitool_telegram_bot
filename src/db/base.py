@@ -91,7 +91,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Get salt for a user."""
 
     @abstractmethod
-    async def get_passwords_records(self, user_id: int, service: str, offset: int, limit: int = c.dynamic_buttons_limit + 1) -> list[EncryptedRecord]:
+    async def get_passwords_records(self, user_id: int, service: str, offset: int) -> list[EncryptedRecord]:
         """Get all passwords of service for a user."""
 
     @abstractmethod

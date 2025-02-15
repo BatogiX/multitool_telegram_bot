@@ -120,13 +120,8 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, service, iv, tag, ciphertext
         )
 
-    async def get_passwords_records(
-            self,
-            user_id: int,
-            service: str,
-            offset: int,
-            limit: int = c.dynamic_buttons_limit + 1
-    ) -> list[EncryptedRecord]:
+    async def get_passwords_records(self, user_id: int, service: str, offset: int) -> list[EncryptedRecord]:
+        limit: int = c.dynamic_buttons_limit + 1
         records: list[Record] = await self._fetch_all(
             "SELECT iv, tag, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
             user_id, service, offset, limit

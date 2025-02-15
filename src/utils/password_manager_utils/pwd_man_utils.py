@@ -62,11 +62,11 @@ class PasswordManagerUtils:
         )
 
     @staticmethod
-    def encrypt_passwords_record(data: str, key: bytes) -> EncryptedRecord:
+    def encrypt_record(record: str, key: bytes) -> EncryptedRecord:
         iv: bytes = PasswordManagerUtils._gen_iv()
         cipher: Cipher[modes.GCM] = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
         encryptor: AEADEncryptionContext = cipher.encryptor()
-        ciphertext: bytes = encryptor.update(data.encode()) + encryptor.finalize()
+        ciphertext: bytes = encryptor.update(record.encode()) + encryptor.finalize()
         return EncryptedRecord(
             iv=iv,
             tag=encryptor.tag,
@@ -74,7 +74,11 @@ class PasswordManagerUtils:
         )
 
     @staticmethod
-    def decrypt_passwords_record(iv: bytes, tag: bytes, ciphertext: bytes, key: bytes) -> DecryptedRecord | None:
+    def decrypt_record(encrypted_record: EncryptedRecord, key: bytes) -> DecryptedRecord | None:
+        iv: bytes = encrypted_record.iv
+        tag: bytes = encrypted_record.tag
+        ciphertext: bytes = encrypted_record.ciphertext
+
         cipher: Cipher[modes.GCM] = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
         decryptor: CipherContext = cipher.decryptor()
         try:
