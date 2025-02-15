@@ -43,11 +43,12 @@ async def derive_key_from_master_password(master_password: str, message: Message
 
 async def show_service_logins(message: Message, state: FSMContext, key: bytes) -> None:
     service: str = await FSMDataUtils.get_service(state)
-    offset: int = await FSMDataUtils.get_pm_pwd_offset(state)
+    pwd_offset: int = await FSMDataUtils.get_pm_pwd_offset(state)
+    services_offset: int = await FSMDataUtils.get_pm_services_offset(state)
     encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.get_passwords_records(
         user_id=message.from_user.id,
         service=service,
-        offset=offset
+        offset=pwd_offset
     )
     decrypted_records: list[DecryptedRecord] = []
     for data in encrypted_records:
@@ -60,7 +61,7 @@ async def show_service_logins(message: Message, state: FSMContext, key: bytes) -
     )
     await message.answer(
         text=text,
-        reply_markup=InlineKeyboards.passwd_man_passwords(decrypted_records, service, offset),
+        reply_markup=InlineKeyboards.passwd_man_passwords(decrypted_records, service, pwd_offset, services_offset),
         parse_mode="Markdown"
     )
 
@@ -131,7 +132,7 @@ async def create_service(message: Message, state: FSMContext):
         reply_markup=InlineKeyboards.passwd_man_passwords(
             decrypted_records=[DecryptedRecord(login=login, password=password)],
             service=service,
-            offset=0
+            pwd_offset=0
         ),
         parse_mode="Markdown"
     )

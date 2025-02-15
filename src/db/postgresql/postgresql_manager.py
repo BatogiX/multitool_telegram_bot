@@ -114,15 +114,19 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id
         )
 
-    async def create_password_record(self, user_id: int, service: str, iv: bytes, tag: bytes,
-                                     ciphertext: bytes) -> None:
+    async def create_password_record(self, user_id: int, service: str, iv: bytes, tag: bytes, ciphertext: bytes) -> None:
         await self._execute(
             "INSERT INTO public.passwords (user_id, service, iv, tag, ciphertext) VALUES ($1, $2, $3, $4, $5)",
             user_id, service, iv, tag, ciphertext
         )
 
-    async def get_passwords_records(self, user_id: int, service: str, offset: int,
-                                    limit: int = c.dynamic_buttons_limit + 1) -> list[EncryptedRecord]:
+    async def get_passwords_records(
+            self,
+            user_id: int,
+            service: str,
+            offset: int,
+            limit: int = c.dynamic_buttons_limit + 1
+    ) -> list[EncryptedRecord]:
         records: list[Record] = await self._fetch_all(
             "SELECT iv, tag, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
             user_id, service, offset, limit

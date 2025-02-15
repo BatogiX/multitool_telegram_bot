@@ -2,6 +2,7 @@ from aiogram.fsm.context import FSMContext
 
 from models.fsm_data import MessageToDelete, Service, HashType, PasswordManagerInputFormat
 from models.fsm_data.pm_pwd_offset import PasswordManagerPasswordsOffset
+from models.fsm_data.pm_services_offset import PasswordManagerServicesOffset
 
 
 class FSMDataUtils:
@@ -49,3 +50,11 @@ class FSMDataUtils:
     @classmethod
     async def get_pm_pwd_offset(cls, state: FSMContext) -> int:
         return await cls._get_data(state, PasswordManagerPasswordsOffset.key)
+
+    @classmethod
+    async def set_pm_services_offset(cls, state: FSMContext, offset: int) -> None:
+        await state.update_data(PasswordManagerServicesOffset(offset))
+
+    @classmethod
+    async def get_pm_services_offset(cls, state: FSMContext) -> int:
+        return await cls._get_data(state, PasswordManagerServicesOffset.key)

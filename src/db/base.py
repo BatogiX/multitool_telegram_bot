@@ -83,8 +83,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Get all services for a user."""
 
     @abstractmethod
-    async def create_password_record(self, user_id: int, service: str, iv: bytes, tag: bytes,
-                                     ciphertext: bytes) -> None:
+    async def create_password_record(self, user_id: int, service: str, iv: bytes, tag: bytes, ciphertext: bytes) -> None:
         """Create a new service for a user."""
 
     @abstractmethod
@@ -92,8 +91,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Get salt for a user."""
 
     @abstractmethod
-    async def get_passwords_records(self, user_id: int, service: str, offset: int,
-                                    limit: int = c.dynamic_buttons_limit + 1) -> list[EncryptedRecord]:
+    async def get_passwords_records(self, user_id: int, service: str, offset: int, limit: int = c.dynamic_buttons_limit + 1) -> list[EncryptedRecord]:
         """Get all passwords of service for a user."""
 
     @abstractmethod

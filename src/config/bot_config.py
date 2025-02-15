@@ -9,7 +9,7 @@ class BotConfig(BaseSettings):
 
     token: str = Field(default=..., alias="TOKEN")  # Required
     sep: str = " "
-    dynamic_buttons_limit: int = 10
+    dynamic_buttons_limit: int = 16
     dynamical_buttons_per_row: int = 2
 
     @property

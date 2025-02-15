@@ -14,14 +14,16 @@ command_router = Router(name=__name__)
 async def cmd_start(message: Message):
     if not await db_manager.relational_db.user_exists(message.from_user.id):
         await db_manager.relational_db.add_user(
-            message.from_user.id,
-            message.from_user.username,
-            message.from_user.full_name,
-            PasswordManagerUtils.gen_salt()
+            user_id=message.from_user.id,
+            user_name=message.from_user.username,
+            full_name=message.from_user.full_name,
+            salt=PasswordManagerUtils.gen_salt()
         )
 
-    inline_keyboard = InlineKeyboards.start_menu_inline_keyboard()
-    await message.answer(text="Hello! I'm your friendly bot. How can I assist you today?", reply_markup=inline_keyboard)
+    await message.answer(
+        text="Hello! I'm your friendly bot. How can I assist you today?",
+        reply_markup=InlineKeyboards.start_menu_inline_keyboard()
+    )
 
 
 @command_router.message(Command("help"))
