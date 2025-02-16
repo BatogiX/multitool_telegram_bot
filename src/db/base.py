@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
-from config import bot_config as c
-from models.passwords_record import EncryptedRecord
+from models.db_record.password_record import EncryptedRecord
 
 
 class AbstractDatabase(ABC):
@@ -79,7 +78,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         pass
 
     @abstractmethod
-    async def get_services(self, user_id: int, offset: int, limit: int = c.dynamic_buttons_limit + 1) -> list[str]:
+    async def get_services(self, user_id: int, offset: int) -> list[str]:
         """Get all services for a user."""
 
     @abstractmethod

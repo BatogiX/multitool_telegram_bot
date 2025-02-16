@@ -1,5 +1,5 @@
 from .hash_menu_keyboard import InlineHashMenuKeyboard
-from .password_manager_keyboard import InlinePasswordManagerKeyboard
+from .pwd_mgr_keyboard import InlinePasswordManagerKeyboard
 from .start_menu_keyboard import InlineStartMenuKeyboard
 
 __all__ = (

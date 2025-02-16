@@ -5,7 +5,7 @@ from aiogram.utils.markdown import text
 
 from config import db_manager
 from keyboards import InlineKeyboards
-from utils.password_manager_utils import PasswordManagerUtils
+from utils.pwd_mgr_utils import PasswordManagerUtils
 
 command_router = Router(name=__name__)
 

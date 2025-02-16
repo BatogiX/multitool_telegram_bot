@@ -5,16 +5,12 @@ from db import DatabaseManager
 from db.postgresql import PostgresqlManager
 from db.redis import RedisManager
 
-
 # ==================== #
 # 🔥 DATABASE SETTINGS #
 # ==================== #
 
 class KeyValueDatabaseConfig(BaseSettings):
-    model_config = SettingsConfigDict(
-        extra="allow",
-        env_prefix="KEY_VALUE_DB_"
-    )
+    model_config = SettingsConfigDict(env_prefix="KEY_VALUE_DB_", frozen=True)
 
     host: str = "localhost"
     port: int = 6379
@@ -26,10 +22,7 @@ class KeyValueDatabaseConfig(BaseSettings):
 
 
 class RelationalDatabaseConfig(BaseSettings):
-    model_config = SettingsConfigDict(
-        extra="allow",
-        env_prefix="RELATIONAL_DB_",
-    )
+    model_config = SettingsConfigDict(env_prefix="RELATIONAL_DB_", frozen=True)
 
     host: str = "localhost"
     port: int = 5432

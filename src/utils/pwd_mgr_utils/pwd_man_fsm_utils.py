@@ -4,10 +4,10 @@ from cryptography.exceptions import InvalidTag
 
 from config import db_manager
 from keyboards import InlineKeyboards
-from models.passwords_record import WeakPasswordException, EncryptedRecord, DecryptedRecord
+from models.db_record.password_record import WeakPasswordException, EncryptedRecord, DecryptedRecord
 from .pwd_man_utils import PasswordManagerUtils as PwManUtils
 from .. import BotUtils
-from ..fsm_data_utils import FSMDataUtils
+from ..storage_utils import StorageUtils
 from models.callback_data import PasswordManagerCallbackData as PwManCbData
 from config import bot_config as c
 
@@ -36,8 +36,8 @@ class PasswordManagerFsmHandlerUtils:
 
     @staticmethod
     async def show_service_logins(message: Message, state: FSMContext, key: bytes, service: str) -> None:
-        pwd_offset: int = await FSMDataUtils.get_pm_pwd_offset(state)
-        services_offset: int = await FSMDataUtils.get_pm_services_offset(state)
+        pwd_offset: int = await StorageUtils.get_pm_pwd_offset(state)
+        services_offset: int = await StorageUtils.get_pm_services_offset(state)
         encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.get_passwords_records(
             user_id=message.from_user.id,
             service=service,
@@ -53,7 +53,7 @@ class PasswordManagerFsmHandlerUtils:
         )
         await message.answer(
             text=text,
-            reply_markup=InlineKeyboards.passwd_man_passwords(decrypted_records, service, pwd_offset, services_offset),
+            reply_markup=InlineKeyboards.pwd_mgr_passwords(decrypted_records, service, pwd_offset, services_offset),
             parse_mode="Markdown"
         )
 
@@ -87,12 +87,12 @@ class PasswordManagerFsmHandlerUtils:
             current_state: str,
     ) -> None:
         await state.set_state(current_state)
-        input_format: str = await FSMDataUtils.get_pm_input_format_text(state)
+        input_format: str = await StorageUtils.get_pm_input_format_text(state)
         message_to_delete: Message = await message.answer(
             text=f"{error_message}\n\n{input_format}",
-            reply_markup=InlineKeyboards.return_to_passwd_man(offset=0)
+            reply_markup=InlineKeyboards.return_to_services(offset=0)
         )
-        await FSMDataUtils.set_message_to_delete(state, message_to_delete.message_id)
+        await StorageUtils.set_message_to_delete(state, message_to_delete.message_id)
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:

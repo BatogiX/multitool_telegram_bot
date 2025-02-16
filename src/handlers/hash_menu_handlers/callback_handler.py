@@ -7,7 +7,7 @@ from keyboards import InlineKeyboards
 from models.callback_data import HashMenuCallbackData
 from models.fsm_states import HashMenuStates
 from utils.filters import CbMagicFilters
-from utils.fsm_data_utils import FSMDataUtils
+from utils.storage_utils import StorageUtils
 from utils.hash_menu_utils import HashMenuUtils
 
 callback_router = Router(name=__name__)
@@ -27,9 +27,9 @@ async def handle_hash_selection(callback_query: CallbackQuery, state: FSMContext
     hash_type: str = callback_data.action
     new_state: State = await HashMenuUtils.get_state_by_hash_type(hash_type)
 
-    await FSMDataUtils.set_hash_type(state, hash_type)
+    await StorageUtils.set_hash_type(state, hash_type)
     await state.set_state(new_state)
-    await FSMDataUtils.set_message_to_delete(state, callback_query.message.message_id)
+    await StorageUtils.set_message_to_delete(state, callback_query.message.message_id)
 
     await callback_query.message.edit_text(
         text="Upload file and enter expected output in caption",

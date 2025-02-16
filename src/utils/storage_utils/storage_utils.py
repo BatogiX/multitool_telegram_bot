@@ -5,7 +5,7 @@ from models.fsm_data.pm_pwd_offset import PasswordManagerPasswordsOffset
 from models.fsm_data.pm_services_offset import PasswordManagerServicesOffset
 
 
-class FSMDataUtils:
+class StorageUtils:
     @staticmethod
     async def _get_data(state: FSMContext, key: str) -> any:
         data = await state.get_data()

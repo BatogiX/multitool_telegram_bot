@@ -7,12 +7,11 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes, AEADEncryptionContext, CipherContext
 
 from config import pm_config, bot_config as c
-from models.passwords_record import EncryptedRecord, DecryptedRecord
-from models.passwords_record.weak_password_exception import WeakPasswordException
+from models.db_record.password_record import EncryptedRecord, DecryptedRecord, WeakPasswordException
 
 
 class PasswordManagerUtils:
-    """Class for passwords_record manager utils"""
+    """Class for password_record manager utils"""
 
     @staticmethod
     def gen_salt(size: int = pm_config.SALT_LEN) -> bytes:

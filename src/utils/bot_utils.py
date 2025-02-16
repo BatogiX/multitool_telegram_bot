@@ -1,7 +1,7 @@
 from aiofiles import os
 from aiogram import types
 
-from utils.fsm_data_utils import FSMDataUtils
+from utils.storage_utils import StorageUtils
 
 
 class BotUtils:
@@ -41,5 +41,5 @@ class BotUtils:
     @staticmethod
     async def delete_fsm_message(state, message: types.Message) -> None:
         """Deletes message by message_id that stores in FSM-data."""
-        message_id = await FSMDataUtils.get_message_id_to_delete(state)
+        message_id = await StorageUtils.get_message_id_to_delete(state)
         await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id)

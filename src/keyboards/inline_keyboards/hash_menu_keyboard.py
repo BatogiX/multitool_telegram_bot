@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from utils.keyboards_utils import StartMenuKeyboardsUtils as kbUtil
-from utils.keyboards_utils import HashMenuKeyboardsUtils as hmUtil
+from utils.keyboard_utils import StartMenuKeyboardsUtils as kbUtil
+from utils.keyboard_utils import HashMenuKeyboardsUtils as hmUtil
 
 
 class InlineHashMenuKeyboard:

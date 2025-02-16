@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton
 
 from models.callback_data import HashMenuCallbackData, StartMenuCallbackData, PasswordManagerCallbackData as PwManCb
-from .keyboards_utils import KeyboardsUtils
+from .kb_utils import KeyboardsUtils
 
 
 class StartMenuKeyboardsUtils(KeyboardsUtils):
@@ -20,7 +20,7 @@ class StartMenuKeyboardsUtils(KeyboardsUtils):
     def gen_password_manager_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.password_manager_text,
-            callback_data=PwManCb.Enter(services_offset=0)
+            callback_data=PwManCb.Enter()
         )
 
     @classmethod

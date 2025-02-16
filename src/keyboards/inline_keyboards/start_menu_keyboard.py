@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup
 
-from utils.keyboards_utils import StartMenuKeyboardsUtils as SmUtil
+from utils.keyboard_utils import StartMenuKeyboardsUtils as SmUtil
 
 
 class InlineStartMenuKeyboard:

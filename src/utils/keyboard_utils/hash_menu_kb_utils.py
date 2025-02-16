@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton
 
 from models.callback_data import HashMenuCallbackData
-from .keyboards_utils import KeyboardsUtils
+from .kb_utils import KeyboardsUtils
 
 class HashMenuKeyboardsUtils(KeyboardsUtils):
     return_to_hash_menu_text = "Back to Hash Menu"
