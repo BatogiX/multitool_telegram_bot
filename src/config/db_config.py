@@ -12,8 +12,6 @@ from db.redis import RedisManager
 
 class KeyValueDatabaseConfig(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file='.env',
-        env_file_encoding='utf-8',
         extra="allow",
         env_prefix="KEY_VALUE_DB_"
     )
@@ -29,22 +27,20 @@ class KeyValueDatabaseConfig(BaseSettings):
 
 class RelationalDatabaseConfig(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file='.env',
-        env_file_encoding='utf-8',
         extra="allow",
         env_prefix="RELATIONAL_DB_",
     )
 
     host: str = "localhost"
     port: int = 5432
-    user: str = "user"
+    user: str = ""
     password: str = ""
-    name: str = "database"
+    name: str = ""
     url: str = Field(
         default="",
         validation_alias=AliasChoices(
-            first_choice="DATABASE_URL",
-            *model_config.get("env_prefix") + "URL"
+            "DATABASE_URL",
+            model_config.get("env_prefix") + "URL"
         )
     )
 
