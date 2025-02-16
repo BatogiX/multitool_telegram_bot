@@ -2,27 +2,17 @@
 ## Features
 
 - Check file's hash
-- Password Manager (Argo2 + AES-GCM) with Zero-Knowledge Proof
+- Password Manager (Argon2 + AES-256-GCM) with Zero-Knowledge Proof
 
 ## Installation
 To install and set up the project, follow these steps:
-
-1. Clone the repository:
-    ```sh
-    git clone https://github.com/batosgi/multitool_telegram_bot.git
-    ```
-
-2. Navigate into the project directory:
-    ```sh
-    cd multitool_telegram_bot
-    ```
    
-3. Create a virtual environment:
+1. Create a virtual environment:
     ```sh
    python -m venv .venv
    ```
    
-4. Activate the virtual environment:
+2. Activate the virtual environment:
    - For Windows (Git Bash):
         ```sh
         source .venv/Scripts/activate
@@ -32,7 +22,7 @@ To install and set up the project, follow these steps:
         source .venv/bin/activate
         ```
 
-5. Install the required dependencies:
+3. Install the required dependencies:
     ```sh
     pip install -r requirements.txt
     ```
