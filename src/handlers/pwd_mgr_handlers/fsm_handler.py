@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, InputFile, BufferedInputFile
+from aiogram.types import Message, BufferedInputFile
 
 from config import db_manager
 from .callback_handler import SERVICES_TEXT, ENTER_TEXT
@@ -49,7 +49,7 @@ async def create_service(message: Message, state: FSMContext):
         text=f"*Service:* {service}\nChoose your login to see password",
         parse_mode="Markdown",
         reply_markup=InlineKeyboards.pwd_mgr_passwords(
-            decrypted_records=[DecryptedRecord(login=login, password=password)],
+            decrypted_records=[DecryptedRecord(service=service, login=login, password=password)],
             service=service,
             pwd_offset=0,
             services_offset=services_offset

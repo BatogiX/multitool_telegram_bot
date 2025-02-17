@@ -3,7 +3,7 @@ from io import BytesIO
 
 import aiofiles
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, InputFile, BufferedInputFile
+from aiogram.types import Message, BufferedInputFile
 from cryptography.exceptions import InvalidTag
 
 from config import db_manager
@@ -127,7 +127,7 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
                 service, login, password = cls._extract_credentials(row.strip())
                 if not service:
                     continue
-                encrypted_record = PwManUtils.encrypt_record(login=login, password=password, key=key)
+                encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
                 pwd_records.append(PasswordRecord(service=service, encrypted_record=encrypted_record))
 
         await db_manager.relational_db.import_passwords(user_id=message.from_user.id, pwd_records=pwd_records)
