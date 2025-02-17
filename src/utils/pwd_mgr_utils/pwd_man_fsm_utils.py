@@ -110,7 +110,7 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
 
     @staticmethod
     def _extract_credentials(text) -> tuple[str, str, str]:
-        pattern = r'"https?://([^"]+?)","([^"]+)","([^"]+)"'
+        pattern = r'(?:https?://)?([^"]+?)","([^"]+)","([^"]+)'
         match = re.search(pattern, text)
 
         if match:
