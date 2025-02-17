@@ -1,4 +1,4 @@
-import re
+import csv
 from io import BytesIO
 
 import aiofiles
@@ -108,27 +108,22 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
         await message.delete()
         return current_state
 
-    @staticmethod
-    def _extract_credentials(text) -> tuple[str, str, str]:
-        pattern = r'(?:https?://)?([^"]+?)","([^"]+)","([^"]+)'
-        match = re.search(pattern, text)
-
-        if match:
-            return match.group(1), match.group(2), match.group(3)
-        return "", "", ""
-
     @classmethod
     async def process_importing_from_file(cls, message: Message, key: bytes):
         temp_file_path = await cls.download_file(message)
 
-        pwd_records: list[PasswordRecord] = []
         async with aiofiles.open(temp_file_path, "r") as f:
-            async for row in f:
-                service, login, password = cls._extract_credentials(row.strip())
-                if not service:
-                    continue
-                encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
-                pwd_records.append(PasswordRecord(service=service, encrypted_record=encrypted_record))
+            content = await f.read()
+            lines = content.splitlines()
+
+        pwd_records: list[PasswordRecord] = []
+        reader = csv.DictReader(lines)
+        for row in reader:
+            service, login, password = row.get("url", ""), row.get("username", ""), row.get("password", "")
+            if not service:
+                continue
+            encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
+            pwd_records.append(PasswordRecord(service=service, encrypted_record=encrypted_record))
 
         await db_manager.relational_db.import_passwords(user_id=message.from_user.id, pwd_records=pwd_records)
         await cls._delete_file(temp_file_path)
@@ -137,7 +132,7 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
     async def process_exporting_to_file(key: bytes, user_id: int) -> BufferedInputFile:
         pwd_records: list[PasswordRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
 
-        csv_lines = ['"Service","Login","Password"']
+        csv_lines = ['"url","username","password"']
         for pwd_record in pwd_records:
             decrypted_record: DecryptedRecord = PwManUtils.decrypt_record(
                 encrypted_record=pwd_record.encrypted_record,
