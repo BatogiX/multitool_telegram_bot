@@ -204,3 +204,11 @@ class PostgresqlManager(AbstractRelationDatabase):
                     ciphertext=record.get("ciphertext")
                 )
         ) for record in records]
+
+    async def inline_search_service(self, user_id: int, service: str) -> list[str]:
+        limit: int = c.dynamic_buttons_limit
+        records = await self._fetch_all(
+            "SELECT DISTINCT service FROM public.passwords WHERE user_id = $1 AND service LIKE $2 LIMIT $3",
+            user_id, f"%{service}%", limit
+        )
+        return [record.get("service") for record in records]

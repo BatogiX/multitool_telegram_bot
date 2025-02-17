@@ -120,3 +120,7 @@ class AbstractRelationDatabase(AbstractDatabase):
     @abstractmethod
     async def export_passwords(self, user_id: int) -> list[PasswordRecord] | None:
         """Import passwords for a user."""
+
+    @abstractmethod
+    async def inline_search_service(self, user_id: int, service: str) -> list[str]:
+        """Search for passwords of service for a user."""

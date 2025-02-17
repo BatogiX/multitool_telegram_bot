@@ -95,15 +95,22 @@ async def enter_service(query: CallbackQuery, callback_data: PwManCb.EnterServic
     service, pwd_offset = callback_data.service, callback_data.pwd_offset
     await state.set_state(PasswordManagerStates.EnterService)
     await StorageUtils.set_service(state, service)
-    await StorageUtils.set_message_to_delete(state, query.message.message_id)
     await StorageUtils.set_pm_pwd_offset(state, pwd_offset)
-
-
     await StorageUtils.set_pm_input_format_text(state=state, text=ASK_MASTER_PASSWORD_TEXT)
-    await query.message.edit_text(
-        text=ASK_MASTER_PASSWORD_TEXT,
-        reply_markup=InlineKeyboards.return_to_services(offset=pwd_offset)
-    )
+
+    if query.message:
+        await query.message.edit_text(
+            text=ASK_MASTER_PASSWORD_TEXT,
+            reply_markup=InlineKeyboards.return_to_services(offset=pwd_offset)
+        )
+        await StorageUtils.set_message_to_delete(state, query.message.message_id)
+    else:
+        message = await query.bot.send_message(
+            chat_id=query.from_user.id,
+            text=ASK_MASTER_PASSWORD_TEXT,
+            reply_markup=InlineKeyboards.return_to_services(offset=pwd_offset)
+        )
+        await StorageUtils.set_message_to_delete(state, message.message_id)
 
 
 @callback_router.callback_query(PwManCb.CreatePassword.filter())

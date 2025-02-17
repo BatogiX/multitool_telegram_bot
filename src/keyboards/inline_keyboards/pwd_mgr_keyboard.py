@@ -22,6 +22,7 @@ class InlinePasswordManagerKeyboard:
 
     @classmethod
     def pwd_mgr_services(cls, services: list[str] | None, offset: int) -> InlineKeyboardMarkup:
+        search_button = PmUtil.gen_search_button(services)
         next_page_button: InlineKeyboardButton | None = PmUtil.gen_next_page_services_button(services, offset)
         service_buttons_rows: list[list[InlineKeyboardButton]] | None = PmUtil.gen_service_buttons(services)
         return_to_pwd_mgr_button: InlineKeyboardButton = PmUtil.gen_return_to_pwd_mgr_button()
@@ -39,6 +40,7 @@ class InlinePasswordManagerKeyboard:
         return InlineKeyboardMarkup(
             inline_keyboard=
             [
+                search_button,
                 *service_buttons_rows,
                 action_buttons_row,
                 navigation_buttons_row
@@ -89,3 +91,8 @@ class InlinePasswordManagerKeyboard:
             [delete_password_button],
             [return_to_services_button]
         ])
+
+    @classmethod
+    def pwd_mgr_inline_search(cls, service: str) -> InlineKeyboardMarkup:
+        inline_query_service_button: InlineKeyboardButton = PmUtil.gen_inline_query_service_button(service)
+        return InlineKeyboardMarkup(inline_keyboard=[[inline_query_service_button]])

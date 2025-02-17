@@ -18,6 +18,7 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
     delete_password_text = "❌ Delete this password"
     return_to_pwd_mgr_text = "Back to Password Manager"
     return_to_services_text = "Back to Services"
+    search_text = "🔎 Search"
 
     @classmethod
     def gen_return_to_pwd_mgr_button(cls) -> InlineKeyboardButton:
@@ -150,4 +151,18 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return cls._create_button(
             text=cls.export_to_file_text,
             callback_data=PwdMgrCb.ExportToFile()
+        )
+
+    @classmethod
+    def gen_search_button(cls, services: list[str]) -> list[InlineKeyboardButton]:
+        return [InlineKeyboardButton(
+            text=cls.search_text,
+            switch_inline_query_current_chat="service="
+        )] if services else []
+
+    @classmethod
+    def gen_inline_query_service_button(cls, service: str) -> InlineKeyboardButton:
+        return cls._create_button(
+            text=service,
+            callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=0)
         )
