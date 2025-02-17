@@ -61,12 +61,14 @@ class PasswordManagerUtils:
         )
 
     @staticmethod
-    def encrypt_record(record: str, key: bytes) -> EncryptedRecord:
+    def encrypt_record(service: str, login: str, password: str, key: bytes) -> EncryptedRecord:
+        record: str = f"{login}{c.sep}{password}"
         iv: bytes = PasswordManagerUtils._gen_iv()
         cipher: Cipher[modes.GCM] = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
         encryptor: AEADEncryptionContext = cipher.encryptor()
         ciphertext: bytes = encryptor.update(record.encode()) + encryptor.finalize()
         return EncryptedRecord(
+            service=service,
             iv=iv,
             tag=encryptor.tag,
             ciphertext=ciphertext
@@ -74,6 +76,7 @@ class PasswordManagerUtils:
 
     @staticmethod
     def decrypt_record(encrypted_record: EncryptedRecord, key: bytes) -> DecryptedRecord | None:
+        service: str = encrypted_record.service
         iv: bytes = encrypted_record.iv
         tag: bytes = encrypted_record.tag
         ciphertext: bytes = encrypted_record.ciphertext
@@ -87,6 +90,7 @@ class PasswordManagerUtils:
         else:
             login, password = decrypted_record.split(c.sep)
             return DecryptedRecord(
+                service=service,
                 login=login,
                 password=password
             )

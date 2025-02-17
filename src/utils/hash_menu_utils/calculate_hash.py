@@ -13,7 +13,6 @@ from utils.storage_utils import StorageUtils
 
 
 class CalculateHash(BotUtils):
-    _DEFAULT_CHUNK_SIZE: int = 4096
     _HASH_TO_STATE_MAPPING: dict[str, State] = {
         HashMenuCallbackData.hash_types.MD5: HashMenuStates.MD5,
         HashMenuCallbackData.hash_types.SHA1: HashMenuStates.SHA1,
@@ -29,15 +28,12 @@ class CalculateHash(BotUtils):
     async def _compute_file_hash(cls, file_path: str, hash_func: Callable) -> str | None:
         """Asynchronously compute the file's hash."""
         hash_obj = hash_func()
-        try:
-            async with aiofiles.open(file_path, "rb") as f:
-                while chunk := await f.read(cls._DEFAULT_CHUNK_SIZE):
-                    hash_obj.update(chunk)
-            return hash_obj.hexdigest()
-        except Exception as e:
-            raise RuntimeError(f"Failed to compute file hash: {e}")
-        finally:
-            await cls._delete_file(file_path)
+        async with aiofiles.open(file_path, "rb") as f:
+            while chunk := await f.read(cls._DEFAULT_CHUNK_SIZE):
+                hash_obj.update(chunk)
+
+        await cls._delete_file(file_path)
+        return hash_obj.hexdigest()
 
     @classmethod
     async def _calculate_file_hash(cls, file_path: str, hash_type: str) -> str:
@@ -52,8 +48,6 @@ class CalculateHash(BotUtils):
         :return: Tuple of (file_path, expected_hash).
         """
         temp_file_path = await cls.download_file(message)
-        if not temp_file_path:
-            raise RuntimeError("Failed to download the file.")
         expected_hash = (message.caption or "").casefold()
         return temp_file_path, expected_hash
 

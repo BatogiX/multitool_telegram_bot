@@ -5,8 +5,10 @@ from utils.storage_utils import StorageUtils
 
 
 class BotUtils:
+    _DEFAULT_CHUNK_SIZE: int = 4096
+
     @staticmethod
-    async def download_file(message: types.Message) -> str | None:
+    async def download_file(message: types.Message) -> str:
         """
         Downloads a file from Telegram and returns it's path.
 
@@ -22,14 +24,12 @@ class BotUtils:
         elif message.audio:
             file_id = message.audio.file_id
         else:
-            await message.answer("File's format not supported.")
-            return None
+            raise Exception("Unsupported file type.")
 
         temp_file_path = f"temp_{file_id}"
         file = await message.bot.get_file(file_id)
         if not file:
-            await message.answer("File's size not supported.")
-            return None
+            raise Exception("Only files up to 50MB are supported.")
         file_path = file.file_path
         await message.bot.download_file(file_path=file_path, destination=temp_file_path)
         return temp_file_path

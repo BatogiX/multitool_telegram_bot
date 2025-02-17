@@ -12,6 +12,8 @@ from utils.hash_menu_utils import HashMenuUtils
 
 callback_router = Router(name=__name__)
 
+HASH_MENU_ENTER_TEXT = "Choose hash option"
+HASH_SELECTION_TEXT = "Upload file and enter expected output in caption"
 
 @callback_router.callback_query(CbMagicFilters.HashMenu_ENTER(F.data))
 async def enter_hash_menu(callback_query: CallbackQuery, state: FSMContext):
@@ -19,7 +21,7 @@ async def enter_hash_menu(callback_query: CallbackQuery, state: FSMContext):
         await state.set_state(None)
 
     inline_kb = InlineKeyboards.hash_menu_keyboard()
-    await callback_query.message.edit_text(text="Choose hash option", reply_markup=inline_kb)
+    await callback_query.message.edit_text(text=HASH_MENU_ENTER_TEXT, reply_markup=inline_kb)
 
 
 @callback_router.callback_query(HashMenuCallbackData.filter())
@@ -32,6 +34,6 @@ async def handle_hash_selection(callback_query: CallbackQuery, state: FSMContext
     await StorageUtils.set_message_to_delete(state, callback_query.message.message_id)
 
     await callback_query.message.edit_text(
-        text="Upload file and enter expected output in caption",
+        text=HASH_SELECTION_TEXT,
         reply_markup=InlineKeyboards.return_to_hash_menu_keyboard()
     )

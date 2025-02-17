@@ -7,7 +7,7 @@ from utils.keyboard_utils import StartMenuKeyboardsUtils as SmUtil
 
 class InlinePasswordManagerKeyboard:
     @classmethod
-    def password_manager_menu(cls):
+    def pwd_mgr_menu(cls):
         enter_services_button: InlineKeyboardButton = PmUtil.gen_enter_services_button()
         import_from_file_button: InlineKeyboardButton = PmUtil.gen_import_from_file_button()
         export_to_file_button: InlineKeyboardButton = PmUtil.gen_export_to_file_button()
@@ -75,6 +75,10 @@ class InlinePasswordManagerKeyboard:
     @classmethod
     def return_to_services(cls, offset) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(inline_keyboard=[[PmUtil.gen_return_to_services_button(offset)]])
+
+    @classmethod
+    def return_to_pwd_mgr(cls) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(inline_keyboard=[[PmUtil.gen_return_to_pwd_mgr_button()]])
 
     @classmethod
     def pwd_mgr_password(cls, offset: int, service: str) -> InlineKeyboardMarkup:

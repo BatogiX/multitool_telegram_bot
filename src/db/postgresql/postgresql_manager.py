@@ -5,7 +5,7 @@ from asyncpg import Pool, Connection, Record
 
 from config import bot_config as c
 from db.base import AbstractRelationDatabase
-from models.db_record.password_record import EncryptedRecord
+from models.db_record.password_record import EncryptedRecord, PasswordRecord
 
 
 class PostgresqlManager(AbstractRelationDatabase):
@@ -124,10 +124,11 @@ class PostgresqlManager(AbstractRelationDatabase):
     async def get_passwords_records(self, user_id: int, service: str, offset: int) -> list[EncryptedRecord]:
         limit: int = c.dynamic_buttons_limit + 1
         records: list[Record] = await self._fetch_all(
-            "SELECT iv, tag, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
+            "SELECT service, iv, tag, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
             user_id, service, offset, limit
         )
         return [EncryptedRecord(
+            service=record.get("service"),
             iv=record.get("iv"),
             tag=record.get('tag'),
             ciphertext=record.get('ciphertext')
@@ -135,10 +136,11 @@ class PostgresqlManager(AbstractRelationDatabase):
 
     async def get_rand_passwords_record(self, user_id: int) -> EncryptedRecord | None:
         record: Record = await self._fetch_row(
-            "SELECT iv, tag, ciphertext FROM public.passwords WHERE user_id = $1",
+            "SELECT service, iv, tag, ciphertext FROM public.passwords WHERE user_id = $1",
             user_id
         )
         return EncryptedRecord(
+            service=record.get("service"),
             iv=record.get("iv"),
             tag=record.get('tag'),
             ciphertext=record.get('ciphertext')
@@ -167,3 +169,38 @@ class PostgresqlManager(AbstractRelationDatabase):
             "DELETE FROM public.passwords WHERE user_id = $1 AND service = $2 AND ciphertext = $3",
             user_id, service, ciphertext
         )
+
+    async def import_passwords(self, user_id: int, pwd_records: list[PasswordRecord]) -> None:
+        values = [
+            (user_id, r.service, r.encrypted_record.iv, r.encrypted_record.tag, r.encrypted_record.ciphertext)
+            for r in pwd_records
+        ]
+
+        query = """
+        INSERT INTO public.passwords (user_id, service, iv, tag, ciphertext)
+        SELECT * FROM unnest($1::int[], $2::text[], $3::bytea[], $4::bytea[], $5::bytea[])
+        """
+
+        await self._execute(
+            query,
+            [v[0] for v in values],  # user_id
+            [v[1] for v in values],  # service
+            [v[2] for v in values],  # iv
+            [v[3] for v in values],  # tag
+            [v[4] for v in values]  # ciphertext
+        )
+
+    async def export_passwords(self, user_id: int) -> list[PasswordRecord] | None:
+        records = await self._fetch_all(
+            "SELECT service, iv, tag, ciphertext FROM public.passwords WHERE user_id = $1",
+            user_id
+        )
+        return [PasswordRecord(
+                service=record["service"],
+                encrypted_record=EncryptedRecord(
+                    service=record.get("service"),
+                    iv=record.get("iv"),
+                    tag=record.get("tag"),
+                    ciphertext=record.get("ciphertext")
+                )
+        ) for record in records]
