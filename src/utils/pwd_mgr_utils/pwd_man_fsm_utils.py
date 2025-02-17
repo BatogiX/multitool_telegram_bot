@@ -119,9 +119,11 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
         pwd_records: list[PasswordRecord] = []
         reader = csv.DictReader(lines)
         for row in reader:
-            service, login, password = row.get("url", ""), row.get("username", ""), row.get("password", "")
+            service = row.get("url", "").replace(" ", "")
             if not service:
                 continue
+            login = row.get("username", "").replace(" ", "")
+            password = row.get("password", "").replace(" ", "")
             encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
             pwd_records.append(PasswordRecord(service=service, encrypted_record=encrypted_record))
 
