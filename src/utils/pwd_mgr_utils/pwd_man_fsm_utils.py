@@ -148,5 +148,5 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
         csv_content = "\n".join(csv_lines).encode('utf-8')
         buffer = BytesIO(csv_content)
 
-        return BufferedInputFile(buffer.read(), filename=f"{user_id}_passwords.csv")
+        return BufferedInputFile(file=buffer.read(), filename=f"{user_id}_passwords.csv")
 

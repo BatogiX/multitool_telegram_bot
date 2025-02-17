@@ -240,7 +240,7 @@ async def delete_service(message: Message, state: FSMContext):
 async def import_from_file(message: Message, state: FSMContext):
     current_state = await PwManFsmHandlerUtils.handle_message_deletion(state, message)
 
-    user_input: tuple[str, ...] = await PwManFsmHandlerUtils.split_user_input(user_input=message.text, maxsplit=1)
+    user_input: tuple[str, ...] = await PwManFsmHandlerUtils.split_user_input(user_input=message.caption, maxsplit=1)
     if not user_input:
         return await PwManFsmHandlerUtils.resend_user_input_request(state, message, MSG_ERROR_INVALID_FORMAT, current_state)
 
