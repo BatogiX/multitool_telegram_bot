@@ -12,6 +12,3 @@ class BotConfig(BaseSettings):
     sep: str = " "
     dynamic_buttons_limit: int = 16
     dynamical_buttons_per_row: int = 2
-
-
-bot_config = BotConfig()

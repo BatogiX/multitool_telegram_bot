@@ -11,7 +11,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.redis import RedisStorage
 
-from config import bot_config, db_manager
+from config import bot_cfg, db_manager
 from handlers import handlers_router
 
 
@@ -21,7 +21,7 @@ async def on_startup() -> tuple[Dispatcher, Bot]:
 
     dispatcher = Dispatcher(storage=RedisStorage(await db_manager.key_value_db.connect()))
     dispatcher.include_router(handlers_router)
-    bot = Bot(token=bot_config.token, default_bot_properties=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(token=bot_cfg.token, default_bot_properties=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     return dispatcher, bot
 

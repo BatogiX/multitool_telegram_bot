@@ -11,21 +11,21 @@ class HashMenuKeyboardsUtils(KeyboardsUtils):
     def gen_return_to_hash_menu_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=f"{cls.return_char} {cls.return_to_hash_menu_text}",
-            callback_data=HashMenuCallbackData(action=HashMenuCallbackData.ACTIONS.ENTER)
+            callback_data=HashMenuCallbackData.Enter()
         )
 
     @classmethod
     def gen_retry_same_hash_button(cls, hash_type: str) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.retry_same_hash_char,
-            callback_data=HashMenuCallbackData(action=hash_type)
+            callback_data=HashMenuCallbackData.Hashes(hash_type=hash_type)
         )
 
     @classmethod
     def gen_hash_buttons(cls) -> list[InlineKeyboardButton]:
         return [
             cls._create_button(
-                text=hash, callback_data=HashMenuCallbackData(action=hash)
+                text=hash_type, callback_data=HashMenuCallbackData.Hashes(hash_type=hash_type)
             )
-            for hash in HashMenuCallbackData.hash_types
+            for hash_type in HashMenuCallbackData.hash_types
         ]

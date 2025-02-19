@@ -2,11 +2,11 @@ from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
-from config import db_manager
+from config import db_manager, bot_cfg
 from keyboards import InlineKeyboards
-from models.callback_data import PasswordManagerCallbackData as PwManCb
-from models.fsm_states import PasswordManagerStates
-from utils.storage_utils import StorageUtils
+from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
+from models.states import PasswordManagerStates
+from utils import StorageUtils
 
 ENTER_TEXT = "Choose option"
 IMPORT_FROM_FILE_TEXT = "Please send the file and enter your Master Password in caption"
@@ -31,7 +31,7 @@ WARNING: str = (
 callback_router = Router(name=__name__)
 
 
-@callback_router.callback_query(PwManCb.Enter.filter())
+@callback_router.callback_query(PwdMgrCb.Enter.filter())
 async def enter(query: CallbackQuery, state: FSMContext):
     if await state.get_state() in PasswordManagerStates:
         await state.set_state(None)
@@ -42,14 +42,15 @@ async def enter(query: CallbackQuery, state: FSMContext):
     )
 
 
-@callback_router.callback_query(PwManCb.EnterServices.filter())
-async def enter_services(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.EnterServices):
+@callback_router.callback_query(PwdMgrCb.EnterServices.filter())
+async def enter_services(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.EnterServices):
     if await state.get_state() in PasswordManagerStates:
         await state.set_state(None)
 
     offset = callback_data.services_offset
     await StorageUtils.set_pm_services_offset(state=state, offset=offset)
-    services = await db_manager.relational_db.get_services(user_id=query.from_user.id, offset=offset)
+    services = await db_manager.relational_db.get_services(
+        user_id=query.from_user.id, offset=offset, limit=bot_cfg.dynamic_buttons_limit)
     if services:
         await query.message.edit_text(
             text=SERVICES_TEXT,
@@ -59,15 +60,15 @@ async def enter_services(query: CallbackQuery, state: FSMContext, callback_data:
     else:
         await query.message.edit_text(
             text=NO_SERVICES_TEXT,
-            reply_markup=InlineKeyboards.pwd_mgr_services(services=[], offset=offset),
+            reply_markup=InlineKeyboards.pwd_mgr_no_services(),
             parse_mode="Markdown"
         )
 
 
-@callback_router.callback_query(PwManCb.CreateService.filter())
-async def create_service(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.CreateService, ):
+@callback_router.callback_query(PwdMgrCb.CreateService.filter())
+async def create_service(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.CreateService, ):
     await state.set_state(PasswordManagerStates.CreateService)
-    await StorageUtils.set_message_to_delete(state=state, message_id=query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state=state, message_id=query.message.message_id)
     offset = callback_data.services_offset
 
     await StorageUtils.set_pm_input_format_text(state=state, text=CREATE_SERVICE_TEXT)
@@ -77,10 +78,10 @@ async def create_service(query: CallbackQuery, state: FSMContext, callback_data:
     )
 
 
-@callback_router.callback_query(PwManCb.DeleteServices.filter())
-async def delete_services(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.DeleteServices):
+@callback_router.callback_query(PwdMgrCb.DeleteServices.filter())
+async def delete_services(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.DeleteServices):
     await state.set_state(PasswordManagerStates.DeleteServices)
-    await StorageUtils.set_message_to_delete(state=state, message_id=query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state=state, message_id=query.message.message_id)
     offset = callback_data.services_offset
 
     await StorageUtils.set_pm_input_format_text(state=state, text=DELETE_SERVICES_TEXT)
@@ -90,8 +91,8 @@ async def delete_services(query: CallbackQuery, state: FSMContext, callback_data
     )
 
 
-@callback_router.callback_query(PwManCb.EnterService.filter())
-async def enter_service(query: CallbackQuery, callback_data: PwManCb.EnterService, state: FSMContext):
+@callback_router.callback_query(PwdMgrCb.EnterService.filter())
+async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterService, state: FSMContext):
     service, pwd_offset = callback_data.service, callback_data.pwd_offset
     await state.set_state(PasswordManagerStates.EnterService)
     await StorageUtils.set_service(state, service)
@@ -103,21 +104,21 @@ async def enter_service(query: CallbackQuery, callback_data: PwManCb.EnterServic
             text=ASK_MASTER_PASSWORD_TEXT,
             reply_markup=InlineKeyboards.return_to_services(offset=pwd_offset)
         )
-        await StorageUtils.set_message_to_delete(state, query.message.message_id)
+        await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
     else:
         message = await query.bot.send_message(
             chat_id=query.from_user.id,
             text=ASK_MASTER_PASSWORD_TEXT,
             reply_markup=InlineKeyboards.return_to_services(offset=pwd_offset)
         )
-        await StorageUtils.set_message_to_delete(state, message.message_id)
+        await StorageUtils.set_message_id_to_delete(state, message.message_id)
 
 
-@callback_router.callback_query(PwManCb.CreatePassword.filter())
-async def create_password(query: CallbackQuery, callback_data: PwManCb.CreatePassword, state: FSMContext):
+@callback_router.callback_query(PwdMgrCb.CreatePassword.filter())
+async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePassword, state: FSMContext):
     service = callback_data.service
     await state.set_state(PasswordManagerStates.CreatePassword)
-    await StorageUtils.set_message_to_delete(state, query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
     await StorageUtils.set_service(state, service)
 
     await StorageUtils.set_pm_input_format_text(state, CREATE_PASSWORD_TEXT)
@@ -127,8 +128,8 @@ async def create_password(query: CallbackQuery, callback_data: PwManCb.CreatePas
     )
 
 
-@callback_router.callback_query(PwManCb.EnterPassword.filter())
-async def enter_password(query: CallbackQuery, callback_data: PwManCb.EnterPassword, state: FSMContext):
+@callback_router.callback_query(PwdMgrCb.EnterPassword.filter())
+async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPassword, state: FSMContext):
     login, password = callback_data.login, callback_data.password
     service: str = await StorageUtils.get_service(state)
 
@@ -145,12 +146,12 @@ async def enter_password(query: CallbackQuery, callback_data: PwManCb.EnterPassw
     )
 
 
-@callback_router.callback_query(PwManCb.ChangeService.filter())
-async def change_service(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.ChangeService):
+@callback_router.callback_query(PwdMgrCb.ChangeService.filter())
+async def change_service(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.ChangeService):
     old_service = callback_data.service
     await state.set_state(PasswordManagerStates.ChangeService)
     await StorageUtils.set_service(state, old_service)
-    await StorageUtils.set_message_to_delete(state, query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
 
     await StorageUtils.set_pm_input_format_text(state, CHANGE_SERVICE_TEXT)
     await query.message.edit_text(
@@ -159,11 +160,11 @@ async def change_service(query: CallbackQuery, state: FSMContext, callback_data:
     )
 
 
-@callback_router.callback_query(PwManCb.DeleteService.filter())
-async def delete_service(query: CallbackQuery, state: FSMContext, callback_data: PwManCb.DeleteService, ):
+@callback_router.callback_query(PwdMgrCb.DeleteService.filter())
+async def delete_service(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.DeleteService, ):
     service_to_delete = callback_data.service
     await state.set_state(PasswordManagerStates.DeleteService)
-    await StorageUtils.set_message_to_delete(state, query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
     await StorageUtils.set_service(state, service_to_delete)
 
     await StorageUtils.set_pm_input_format_text(state, DELETE_SERVICE_TEXT)
@@ -173,10 +174,10 @@ async def delete_service(query: CallbackQuery, state: FSMContext, callback_data:
     )
 
 
-@callback_router.callback_query(PwManCb.DeletePassword.filter())
+@callback_router.callback_query(PwdMgrCb.DeletePassword.filter())
 async def delete_password(query: CallbackQuery, state: FSMContext):
     await state.set_state(PasswordManagerStates.DeletePassword)
-    await StorageUtils.set_message_to_delete(state, query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
 
     await StorageUtils.set_pm_input_format_text(state, DELETE_PASSWORD_TEXT)
     await query.message.edit_text(
@@ -185,10 +186,10 @@ async def delete_password(query: CallbackQuery, state: FSMContext):
     )
 
 
-@callback_router.callback_query(PwManCb.ImportFromFile.filter())
+@callback_router.callback_query(PwdMgrCb.ImportFromFile.filter())
 async def import_from_file(query: CallbackQuery, state: FSMContext):
     await state.set_state(PasswordManagerStates.ImportFromFile)
-    await StorageUtils.set_message_to_delete(state, query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
 
     await StorageUtils.set_pm_input_format_text(state, IMPORT_FROM_FILE_TEXT)
     await query.message.edit_text(
@@ -197,10 +198,10 @@ async def import_from_file(query: CallbackQuery, state: FSMContext):
     )
 
 
-@callback_router.callback_query(PwManCb.ExportToFile.filter())
+@callback_router.callback_query(PwdMgrCb.ExportToFile.filter())
 async def export_to_file(query: CallbackQuery, state: FSMContext):
     await state.set_state(PasswordManagerStates.ExportToFile)
-    await StorageUtils.set_message_to_delete(state, query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
 
     await StorageUtils.set_pm_input_format_text(state, ASK_MASTER_PASSWORD_TEXT)
     await query.message.edit_text(

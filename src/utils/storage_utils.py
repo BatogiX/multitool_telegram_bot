@@ -1,8 +1,8 @@
 from aiogram.fsm.context import FSMContext
 
-from models.fsm_data import MessageToDelete, Service, HashType, PasswordManagerInputFormat
-from models.fsm_data.pm_pwd_offset import PasswordManagerPasswordsOffset
-from models.fsm_data.pm_services_offset import PasswordManagerServicesOffset
+from models.kv import MessageIdToDelete, Service, HashType, PasswordManagerInputFormat
+from models.kv.pm_pwd_offset import PasswordManagerPasswordsOffset
+from models.kv.pm_services_offset import PasswordManagerServicesOffset
 
 
 class StorageUtils:
@@ -12,12 +12,12 @@ class StorageUtils:
         return data.get(key)
 
     @staticmethod
-    async def set_message_to_delete(state: FSMContext, message_id: int) -> None:
-        await state.update_data(MessageToDelete(message_id))
+    async def set_message_id_to_delete(state: FSMContext, message_id: int) -> None:
+        await state.update_data(MessageIdToDelete(message_id))
 
     @classmethod
     async def get_message_id_to_delete(cls, state: FSMContext) -> int:
-        return await cls._get_data(state, MessageToDelete.key)
+        return await cls._get_data(state, MessageIdToDelete.key)
 
     @staticmethod
     async def set_service(state: FSMContext, service_name: str) -> None:

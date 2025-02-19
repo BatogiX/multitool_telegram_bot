@@ -6,19 +6,19 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
 from cryptography.exceptions import InvalidTag
 
-from config import db_manager
+from config import db_manager, bot_cfg
 from keyboards import InlineKeyboards
-from models.db_record.password_record import WeakPasswordException, EncryptedRecord, DecryptedRecord, PasswordRecord
-from .pwd_man_utils import PasswordManagerUtils as PwManUtils
-from .. import BotUtils
-from ..storage_utils import StorageUtils
+from models.db_record.password_record import EncryptedRecord, DecryptedRecord, PasswordRecord
+from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwManUtils
+from utils import BotUtils
+from utils.storage_utils import StorageUtils
 from models.callback_data import PasswordManagerCallbackData as PwManCbData
-from config import bot_config as c
+from .weak_pwd_exception import WeakPasswordException
 
 MAX_CHAR_LIMIT: int = 64
 
 
-class PasswordManagerFsmHandlerUtils(BotUtils):
+class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
     def is_master_password_valid(master_password: str) -> str:
         try:
@@ -32,7 +32,7 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
         """derives a key, and verifies correctness."""
         salt: bytes = await db_manager.relational_db.get_salt(message.from_user.id)
         key: bytes = PwManUtils.derive_key(master_password, salt)
-        rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_passwords_record(message.from_user.id)
+        rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_password(message.from_user.id)
 
         if rand_encrypted_record:
             try:
@@ -45,10 +45,11 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
     async def show_service_logins(message: Message, state: FSMContext, key: bytes, service: str) -> None:
         pwd_offset: int = await StorageUtils.get_pm_pwd_offset(state)
         services_offset: int = await StorageUtils.get_pm_services_offset(state)
-        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.get_passwords_records(
+        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.get_passwords(
             user_id=message.from_user.id,
             service=service,
-            offset=pwd_offset
+            offset=pwd_offset,
+            limit=bot_cfg.dynamic_buttons_limit
         )
         decrypted_records: list[DecryptedRecord] = []
         for encrypted_record in encrypted_records:
@@ -67,12 +68,12 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
     @staticmethod
     def has_valid_input_length(login: str, password: str) -> bool:
         """Checks if the combined input length exceeds the max character limit."""
-        return len(f"{PwManCbData.EnterPassword.__prefix__}{c.sep}{login}{c.sep}{password}") <= MAX_CHAR_LIMIT
+        return len(f"{PwManCbData.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") <= MAX_CHAR_LIMIT
 
     @staticmethod
     async def create_password_record(login: str, password: str, service: str, message: Message, key: bytes) -> None:
         encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
-        await db_manager.relational_db.create_password_record(
+        await db_manager.relational_db.create_password(
             user_id=message.from_user.id,
             service=encrypted_record.service,
             iv=encrypted_record.iv,
@@ -81,7 +82,7 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
         )
 
     @staticmethod
-    async def split_user_input(user_input: str, maxsplit: int, sep: str = c.sep) -> tuple:
+    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> tuple:
         parts = tuple(user_input.split(sep=sep))
         return parts if len(parts) == maxsplit else tuple()
 
@@ -98,7 +99,7 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
             text=f"{error_message}\n\n{input_format}",
             reply_markup=InlineKeyboards.return_to_services(offset=0)
         )
-        await StorageUtils.set_message_to_delete(state, message_to_delete.message_id)
+        await StorageUtils.set_message_id_to_delete(state, message_to_delete.message_id)
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:
@@ -119,11 +120,11 @@ class PasswordManagerFsmHandlerUtils(BotUtils):
         pwd_records: list[PasswordRecord] = []
         reader = csv.DictReader(lines)
         for row in reader:
-            service = row.get("url", "").replace(c.sep, "")
+            service = row.get("url", "").replace(bot_cfg.sep, "")
             if not service:
                 continue
-            login = row.get("username", "").replace(c.sep, "")
-            password = row.get("password", "").replace(c.sep, "")
+            login = row.get("username", "").replace(bot_cfg.sep, "")
+            password = row.get("password", "").replace(bot_cfg.sep, "")
             encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
             pwd_records.append(PasswordRecord(service=service, encrypted_record=encrypted_record))
 

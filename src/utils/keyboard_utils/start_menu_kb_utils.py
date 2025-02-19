@@ -13,7 +13,7 @@ class StartMenuKeyboardsUtils(KeyboardsUtils):
     def gen_hash_menu_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.hash_menu_text,
-            callback_data=HashMenuCallbackData(action=HashMenuCallbackData.ACTIONS.ENTER)
+            callback_data=HashMenuCallbackData.Enter()
         )
 
     @classmethod
@@ -27,5 +27,5 @@ class StartMenuKeyboardsUtils(KeyboardsUtils):
     def gen_return_to_start_menu_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=f"{cls.return_char} {cls.return_to_start_menu_text}",
-            callback_data=StartMenuCallbackData(action=StartMenuCallbackData.ACTIONS.ENTER)
+            callback_data=StartMenuCallbackData.Enter()
         )

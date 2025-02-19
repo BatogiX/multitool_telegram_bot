@@ -6,20 +6,22 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes, AEADEncryptionContext, CipherContext
 
-from config import pm_config, bot_config as c
-from models.db_record.password_record import EncryptedRecord, DecryptedRecord, WeakPasswordException
+from config import pwd_mgr_cfg, bot_cfg
+from models.db_record.password_record import EncryptedRecord, DecryptedRecord
+from .weak_pwd_exception import WeakPasswordException
 
 
-class PasswordManagerUtils:
+class PasswordManagerCryptoHelper:
     """Class for password_record manager utils"""
 
     @staticmethod
-    def gen_salt(size: int = pm_config.SALT_LEN) -> bytes:
+    def gen_salt(size: int = pwd_mgr_cfg.SALT_LEN) -> bytes:
         """Generate salt (128-bit by default)"""
         return secrets.token_bytes(size)
 
     @staticmethod
-    def _gen_iv(size: int = pm_config.GCM_IV_SIZE) -> bytes:
+    def _gen_iv(size: int = pwd_mgr_cfg.GCM_IV_SIZE) -> bytes:
+        """Generate salt (96-bit recommended)"""
         return secrets.token_bytes(size)
 
     @staticmethod
@@ -44,12 +46,14 @@ class PasswordManagerUtils:
 
     @staticmethod
     def derive_key(
-            master_password: str, salt: bytes,
-            time_cost: int = pm_config.ARGON2.TIME_COST,
-            memory_cost: int = pm_config.ARGON2.MEMORY_COST,
-            parallelism: int = pm_config.ARGON2.PARALLELISM,
-            length: int = pm_config.ARGON2.HASH_LEN
+            master_password: str,
+            salt: bytes,
+            time_cost: int = pwd_mgr_cfg.ARGON2.TIME_COST,
+            memory_cost: int = pwd_mgr_cfg.ARGON2.MEMORY_COST,
+            parallelism: int = pwd_mgr_cfg.ARGON2.PARALLELISM,
+            length: int = pwd_mgr_cfg.ARGON2.HASH_LEN
     ) -> bytes:
+        """Derive 256-bit key from Master Password"""
         return hash_secret_raw(
             secret=master_password.encode(),
             salt=salt,
@@ -62,8 +66,8 @@ class PasswordManagerUtils:
 
     @staticmethod
     def encrypt_record(service: str, login: str, password: str, key: bytes) -> EncryptedRecord:
-        record: str = f"{login}{c.sep}{password}"
-        iv: bytes = PasswordManagerUtils._gen_iv()
+        record: str = f"{login}{bot_cfg.sep}{password}"
+        iv: bytes = PasswordManagerCryptoHelper._gen_iv()
         cipher: Cipher[modes.GCM] = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
         encryptor: AEADEncryptionContext = cipher.encryptor()
         ciphertext: bytes = encryptor.update(record.encode()) + encryptor.finalize()
@@ -76,7 +80,6 @@ class PasswordManagerUtils:
 
     @staticmethod
     def decrypt_record(encrypted_record: EncryptedRecord, key: bytes) -> DecryptedRecord | None:
-        service: str = encrypted_record.service
         iv: bytes = encrypted_record.iv
         tag: bytes = encrypted_record.tag
         ciphertext: bytes = encrypted_record.ciphertext
@@ -88,9 +91,9 @@ class PasswordManagerUtils:
         except InvalidTag:
             raise
         else:
-            login, password = decrypted_record.split(c.sep)
+            login, password = decrypted_record.split(bot_cfg.sep)
             return DecryptedRecord(
-                service=service,
+                service=encrypted_record.service,
                 login=login,
                 password=password
             )

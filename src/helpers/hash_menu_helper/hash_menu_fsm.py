@@ -7,12 +7,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State
 
 from models.callback_data import HashMenuCallbackData
-from models.fsm_states import HashMenuStates
+from models.states import HashMenuStates
 from utils import BotUtils
 from utils.storage_utils import StorageUtils
 
 
-class CalculateHash(BotUtils):
+class HashMenuFsmHelper(BotUtils):
     _HASH_TO_STATE_MAPPING: dict[str, State] = {
         HashMenuCallbackData.hash_types.MD5: HashMenuStates.MD5,
         HashMenuCallbackData.hash_types.SHA1: HashMenuStates.SHA1,
@@ -50,6 +50,10 @@ class CalculateHash(BotUtils):
         temp_file_path = await cls.download_file(message)
         expected_hash = (message.caption or "").casefold()
         return temp_file_path, expected_hash
+
+    @classmethod
+    async def get_state_by_hash_type(cls, hash_type: str) -> State:
+        return cls._HASH_TO_STATE_MAPPING.get(hash_type)
 
     @classmethod
     async def check_hash(cls, state: FSMContext, message: types.Message) -> tuple[bool, str, str, str]:

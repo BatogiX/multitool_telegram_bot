@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardButton
 from models.db_record.password_record import DecryptedRecord
 from .kb_utils import KeyboardsUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
-from config import bot_config as c
+from config import bot_cfg
 
 
 class PasswordManagerKeyboardsUtils(KeyboardsUtils):
@@ -19,6 +19,7 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
     return_to_pwd_mgr_text = "Back to Password Manager"
     return_to_services_text = "Back to Services"
     search_text = "🔎 Search"
+    inline_query_search_service = "service="
 
     @classmethod
     def gen_return_to_pwd_mgr_button(cls) -> InlineKeyboardButton:
@@ -51,11 +52,11 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return create_new_service_button
 
     @classmethod
-    def gen_delete_services_button(cls, services: list[str], offset: int) -> InlineKeyboardButton | None:
+    def gen_delete_services_button(cls, offset: int) -> InlineKeyboardButton | None:
         return cls._create_button(
             text=cls.delete_services_text,
             callback_data=PwdMgrCb.DeleteServices(services_offset=offset)
-        ) if services else None
+        )
 
     @classmethod
     def gen_change_service_button(cls, service: str) -> InlineKeyboardButton:
@@ -102,16 +103,16 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
     def gen_previous_page_services_button(cls, offset: int) -> InlineKeyboardButton | None:
         return cls._create_button(
             text=cls.previous_page_char,
-            callback_data=PwdMgrCb.EnterServices(services_offset=offset - c.dynamic_buttons_limit)
+            callback_data=PwdMgrCb.EnterServices(services_offset=offset - bot_cfg.dynamic_buttons_limit)
         ) if offset > 0 else None
 
     @classmethod
     def gen_next_page_services_button(cls, services: list[str], offset: int) -> InlineKeyboardButton | None:
-        if len(services) > c.dynamic_buttons_limit:
+        if len(services) > bot_cfg.dynamic_buttons_limit:
             services.pop()
             return cls._create_button(
                 text=cls.next_page_char,
-                callback_data=PwdMgrCb.EnterServices(services_offset=offset + c.dynamic_buttons_limit)
+                callback_data=PwdMgrCb.EnterServices(services_offset=offset + bot_cfg.dynamic_buttons_limit)
             )
         return None
 
@@ -119,16 +120,16 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
     def gen_previous_page_pwds_button(cls, offset: int, service: str) -> InlineKeyboardButton | None:
         return cls._create_button(
             text=cls.previous_page_char,
-            callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=offset - c.dynamic_buttons_limit)
+            callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=offset - bot_cfg.dynamic_buttons_limit)
         ) if offset > 0 else None
 
     @classmethod
     def gen_next_page_pwds_button(cls, decrypted_records: list[DecryptedRecord], offset: int, service: str) -> InlineKeyboardButton | None:
-        if len(decrypted_records) > c.dynamic_buttons_limit:
+        if len(decrypted_records) > bot_cfg.dynamic_buttons_limit:
             decrypted_records.pop()
             return cls._create_button(
                 text=cls.next_page_char,
-                callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=offset + c.dynamic_buttons_limit)
+                callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=offset + bot_cfg.dynamic_buttons_limit)
             )
         return None
 
@@ -154,11 +155,11 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         )
 
     @classmethod
-    def gen_search_button(cls, services: list[str]) -> list[InlineKeyboardButton]:
-        return [InlineKeyboardButton(
+    def gen_search_button(cls) -> InlineKeyboardButton:
+        return InlineKeyboardButton(
             text=cls.search_text,
-            switch_inline_query_current_chat="service="
-        )] if services else []
+            switch_inline_query_current_chat=cls.inline_query_search_service
+        )
 
     @classmethod
     def gen_inline_query_service_button(cls, service: str) -> InlineKeyboardButton:

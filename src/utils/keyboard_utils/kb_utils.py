@@ -3,7 +3,7 @@ from typing import Callable
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton
 
-from config import bot_config as c
+from config import bot_cfg
 
 
 class KeyboardsUtils:
@@ -23,6 +23,6 @@ class KeyboardsUtils:
         return [
             [
                 create_button_fn(items[i + j])
-                for j in range(min(c.dynamical_buttons_per_row, len(items) - i))
-            ] for i in range(0, len(items), c.dynamical_buttons_per_row)
+                for j in range(min(bot_cfg.dynamical_buttons_per_row, len(items) - i))
+            ] for i in range(0, len(items), bot_cfg.dynamical_buttons_per_row)
         ]

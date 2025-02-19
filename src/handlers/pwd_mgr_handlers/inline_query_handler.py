@@ -1,22 +1,25 @@
-import hashlib
-
 from aiogram import Router, F
 from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 
-from config import db_manager
+from config import db_manager, bot_cfg
 from keyboards import InlinePasswordManagerKeyboard
+from utils import InlineKeyboardsUtils as KbUtils
 
 inline_query_router = Router(name=__name__)
 
 
-@inline_query_router.inline_query(F.query.startswith("service="))
+@inline_query_router.inline_query(F.query.startswith(KbUtils.inline_query_search_service))
 async def search(query: InlineQuery):
     search_text = query.query.replace("service=", "")
 
-    services: list[str] = await db_manager.relational_db.inline_search_service(query.from_user.id, search_text)
+    services: list[str] = await db_manager.relational_db.inline_search_service(
+        user_id=query.from_user.id,
+        service=search_text,
+        limit=bot_cfg.dynamic_buttons_limit
+    )
     articles = [
         InlineQueryResultArticle(
-            id=hashlib.md5(service.encode()).hexdigest(),
+            id=service,
             title=service,
             input_message_content=InputTextMessageContent(message_text=f"🔎 {service}"),
             reply_markup=InlinePasswordManagerKeyboard.pwd_mgr_inline_search(service)

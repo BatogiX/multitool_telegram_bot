@@ -16,6 +16,3 @@ class PasswordManagerConfig(BaseSettings):
     GCM_IV_SIZE: int = 12  # Recommended IV size for AES-GCM
     SALT_LEN: int = 16
     ARGON2: Argon2Config = Argon2Config()
-
-
-pm_config = PasswordManagerConfig()
