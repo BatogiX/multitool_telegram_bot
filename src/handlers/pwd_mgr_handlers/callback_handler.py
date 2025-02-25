@@ -6,7 +6,7 @@ from config import db_manager, bot_cfg
 from keyboards import InlineKeyboards
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from models.states import PasswordManagerStates
-from utils import StorageUtils
+from utils import StorageUtils, BotUtils
 
 ENTER_TEXT = "Choose option"
 IMPORT_FROM_FILE_TEXT = "Please send the file and enter your Master Password in caption"
@@ -130,8 +130,8 @@ async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePa
 
 @callback_router.callback_query(PwdMgrCb.EnterPassword.filter())
 async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPassword, state: FSMContext):
-    login, password = callback_data.login, callback_data.password
-    service: str = await StorageUtils.get_service(state)
+    login, password = BotUtils.escape_markdown_v2(callback_data.login), BotUtils.escape_markdown_v2(callback_data.password)
+    service: str = BotUtils.escape_markdown_v2(await StorageUtils.get_service(state))
 
     text = (
         f"*Service*: {service}\n\n"
@@ -142,7 +142,7 @@ async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPass
     await query.message.edit_text(
         text=text,
         reply_markup=InlineKeyboards.pwd_mgr_password(offset=0, service=service),
-        parse_mode="Markdown"
+        parse_mode="MarkdownV2"
     )
 
 

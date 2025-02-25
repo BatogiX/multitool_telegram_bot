@@ -1,4 +1,3 @@
-import re
 import secrets
 
 from argon2.low_level import hash_secret_raw, Type
@@ -8,12 +7,9 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes, AE
 
 from config import pwd_mgr_cfg, bot_cfg
 from models.db_record.password_record import EncryptedRecord, DecryptedRecord
-from .weak_pwd_exception import WeakPasswordException
 
 
 class PasswordManagerCryptoHelper:
-    """Class for password_record manager utils"""
-
     @staticmethod
     def gen_salt(size: int = pwd_mgr_cfg.SALT_LEN) -> bytes:
         """Generate salt (128-bit by default)"""
@@ -23,26 +19,6 @@ class PasswordManagerCryptoHelper:
     def _gen_iv(size: int = pwd_mgr_cfg.GCM_IV_SIZE) -> bytes:
         """Generate salt (96-bit recommended)"""
         return secrets.token_bytes(size)
-
-    @staticmethod
-    def validate_master_password(master_password: str) -> bool:
-        """Validate Master Password"""
-        if len(master_password) < 12:
-            raise WeakPasswordException("The Master Password must contain at least 12 characters.")
-
-        if not re.search(r'[A-Z]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one capital letter.")
-
-        if not re.search(r'[a-z]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one lowercase letter.")
-
-        if not re.search(r'[0-9]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one number.")
-
-        if not re.search(r'[\W_]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one special character.")
-
-        return True
 
     @staticmethod
     def derive_key(

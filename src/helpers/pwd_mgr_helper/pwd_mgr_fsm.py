@@ -1,4 +1,5 @@
 import csv
+import re
 from io import BytesIO
 
 import aiofiles
@@ -9,10 +10,10 @@ from cryptography.exceptions import InvalidTag
 from config import db_manager, bot_cfg
 from keyboards import InlineKeyboards
 from models.db_record.password_record import EncryptedRecord, DecryptedRecord, PasswordRecord
-from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwManUtils
+from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrUtils
 from utils import BotUtils
 from utils.storage_utils import StorageUtils
-from models.callback_data import PasswordManagerCallbackData as PwManCbData
+from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from .weak_pwd_exception import WeakPasswordException
 
 MAX_CHAR_LIMIT: int = 64
@@ -20,9 +21,29 @@ MAX_CHAR_LIMIT: int = 64
 
 class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
-    def is_master_password_valid(master_password: str) -> str:
+    def _validate_master_password(master_password: str) -> bool:
+        """Validate Master Password"""
+        if len(master_password) < 12:
+            raise WeakPasswordException("The Master Password must contain at least 12 characters.")
+
+        if not re.search(r'[A-Z]', master_password):
+            raise WeakPasswordException("The Master Password must contain at least one capital letter.")
+
+        if not re.search(r'[a-z]', master_password):
+            raise WeakPasswordException("The Master Password must contain at least one lowercase letter.")
+
+        if not re.search(r'[0-9]', master_password):
+            raise WeakPasswordException("The Master Password must contain at least one number.")
+
+        if not re.search(r'[\W_]', master_password):
+            raise WeakPasswordException("The Master Password must contain at least one special character.")
+
+        return True
+
+    @classmethod
+    def is_master_password_valid(cls, master_password: str) -> str:
         try:
-            PwManUtils.validate_master_password(master_password)
+            cls._validate_master_password(master_password)
         except WeakPasswordException as e:
             return str(e)
         return ""
@@ -31,12 +52,12 @@ class PasswordManagerFsmHelper(BotUtils):
     async def derive_key_from_master_password(master_password: str, message: Message) -> bytes:
         """derives a key, and verifies correctness."""
         salt: bytes = await db_manager.relational_db.get_salt(message.from_user.id)
-        key: bytes = PwManUtils.derive_key(master_password, salt)
+        key: bytes = PwdMgrUtils.derive_key(master_password, salt)
         rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_password(message.from_user.id)
 
         if rand_encrypted_record:
             try:
-                PwManUtils.decrypt_record(encrypted_record=rand_encrypted_record, key=key)
+                PwdMgrUtils.decrypt_record(encrypted_record=rand_encrypted_record, key=key)
             except InvalidTag:
                 return b""
         return key
@@ -53,7 +74,7 @@ class PasswordManagerFsmHelper(BotUtils):
         )
         decrypted_records: list[DecryptedRecord] = []
         for encrypted_record in encrypted_records:
-            decrypted_record: DecryptedRecord = PwManUtils.decrypt_record(encrypted_record=encrypted_record, key=key)
+            decrypted_record: DecryptedRecord = PwdMgrUtils.decrypt_record(encrypted_record=encrypted_record, key=key)
             decrypted_records.append(decrypted_record)
         text: str = (
             f"*Service:* {service}\n"
@@ -68,11 +89,11 @@ class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
     def has_valid_input_length(login: str, password: str) -> bool:
         """Checks if the combined input length exceeds the max character limit."""
-        return len(f"{PwManCbData.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") <= MAX_CHAR_LIMIT
+        return len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") <= MAX_CHAR_LIMIT
 
     @staticmethod
     async def create_password_record(login: str, password: str, service: str, message: Message, key: bytes) -> None:
-        encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
+        encrypted_record = PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key)
         await db_manager.relational_db.create_password(
             user_id=message.from_user.id,
             service=encrypted_record.service,
@@ -125,7 +146,7 @@ class PasswordManagerFsmHelper(BotUtils):
                 continue
             login = row.get("username", "").replace(bot_cfg.sep, "")
             password = row.get("password", "").replace(bot_cfg.sep, "")
-            encrypted_record = PwManUtils.encrypt_record(service=service, login=login, password=password, key=key)
+            encrypted_record = PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key)
             pwd_records.append(PasswordRecord(service=service, encrypted_record=encrypted_record))
 
         await db_manager.relational_db.import_passwords(user_id=message.from_user.id, pwd_records=pwd_records)
@@ -137,7 +158,7 @@ class PasswordManagerFsmHelper(BotUtils):
 
         csv_lines = ['"url","username","password"']
         for pwd_record in pwd_records:
-            decrypted_record: DecryptedRecord = PwManUtils.decrypt_record(
+            decrypted_record: DecryptedRecord = PwdMgrUtils.decrypt_record(
                 encrypted_record=pwd_record.encrypted_record,
                 key=key
             )

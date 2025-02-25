@@ -1,15 +1,10 @@
 from abc import ABC, abstractmethod
 
-from pydantic_settings import BaseSettings
-
 from models.db_record.password_record import EncryptedRecord, PasswordRecord
 
 
 class AbstractDatabase(ABC):
     """Base abstract class for all DBs."""
-
-    def __init__(self, config: BaseSettings):
-        self._c = config
 
     @abstractmethod
     async def connect(self):
@@ -22,6 +17,10 @@ class AbstractDatabase(ABC):
 
 class AbstractKeyValueDatabase(AbstractDatabase):
     """Abstract class for key-value storage (Redis, Memcached)."""
+
+    def __init__(self):
+        from config.db_config import KeyValueDatabaseConfig
+        self._c = KeyValueDatabaseConfig()
 
     @abstractmethod
     async def get(self, key: str):
@@ -38,6 +37,10 @@ class AbstractKeyValueDatabase(AbstractDatabase):
 
 class AbstractRelationDatabase(AbstractDatabase):
     """Abstract class for relational databases."""
+
+    def __init__(self):
+        from config.db_config import RelationalDatabaseConfig
+        self._c = RelationalDatabaseConfig()
 
     @abstractmethod
     async def _execute(self, query: str, *args) -> None:

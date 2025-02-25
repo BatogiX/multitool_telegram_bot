@@ -9,7 +9,7 @@ class RedisManager(AbstractKeyValueDatabase):
     """
     Implementation of a key–value store for Redis.
     """
-    _pool: None | Redis = None
+    _pool: Redis | None = None
 
     async def connect(self) -> Redis:
         """

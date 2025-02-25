@@ -1,3 +1,5 @@
+import re
+
 from aiofiles import os
 from aiogram import types
 from aiogram.exceptions import TelegramBadRequest
@@ -46,3 +48,7 @@ class BotUtils:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id)
         except TelegramBadRequest:
             pass
+
+    @staticmethod
+    def escape_markdown_v2(text: str) -> str:
+        return re.sub(r'([_*\[\]()~`>#\+\-=|{}.!])', r'\\\1', text)
