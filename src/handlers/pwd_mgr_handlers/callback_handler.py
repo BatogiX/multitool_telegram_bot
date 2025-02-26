@@ -3,13 +3,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from config import db_manager, bot_cfg
-from keyboards import InlineKeyboards
+from keyboards import Keyboards
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from models.states import PasswordManagerStates
 from utils import StorageUtils, BotUtils
 
 ENTER_TEXT = "Choose option"
-IMPORT_FROM_FILE_TEXT = "Please send the file and enter your Master Password in caption"
+IMPORT_FROM_FILE_TEXT = "Please send the .csv file and enter your Master Password in caption"
 SERVICES_TEXT = "*SERVICES*\n\nChoose service"
 NO_SERVICES_TEXT = "*SERVICES*\n\nYou don't have any services yet. Create one now?"
 DELETE_SERVICES_TEXT = "Are you sure you want to delete all services?\n\nIf yes - please enter your Master Password"
@@ -38,7 +38,7 @@ async def enter(query: CallbackQuery, state: FSMContext):
 
     await query.message.edit_text(
         text=ENTER_TEXT,
-        reply_markup=InlineKeyboards.pwd_mgr_menu()
+        reply_markup=Keyboards.inline.pwd_mgr_menu()
     )
 
 
@@ -54,13 +54,13 @@ async def enter_services(query: CallbackQuery, state: FSMContext, callback_data:
     if services:
         await query.message.edit_text(
             text=SERVICES_TEXT,
-            reply_markup=InlineKeyboards.pwd_mgr_services(services=services, offset=offset),
+            reply_markup=Keyboards.inline.pwd_mgr_services(services=services, offset=offset),
             parse_mode="Markdown"
         )
     else:
         await query.message.edit_text(
             text=NO_SERVICES_TEXT,
-            reply_markup=InlineKeyboards.pwd_mgr_no_services(),
+            reply_markup=Keyboards.inline.pwd_mgr_no_services(),
             parse_mode="Markdown"
         )
 
@@ -74,7 +74,7 @@ async def create_service(query: CallbackQuery, state: FSMContext, callback_data:
     await StorageUtils.set_pm_input_format_text(state=state, text=CREATE_SERVICE_TEXT)
     await query.message.edit_text(
         text=WARNING + CREATE_SERVICE_TEXT,
-        reply_markup=InlineKeyboards.return_to_services(offset)
+        reply_markup=Keyboards.inline.return_to_services(offset)
     )
 
 
@@ -87,7 +87,7 @@ async def delete_services(query: CallbackQuery, state: FSMContext, callback_data
     await StorageUtils.set_pm_input_format_text(state=state, text=DELETE_SERVICES_TEXT)
     await query.message.edit_text(
         text=DELETE_SERVICES_TEXT,
-        reply_markup=InlineKeyboards.return_to_services(offset=offset)
+        reply_markup=Keyboards.inline.return_to_services(offset=offset)
     )
 
 
@@ -102,14 +102,14 @@ async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterServi
     if query.message:
         await query.message.edit_text(
             text=ASK_MASTER_PASSWORD_TEXT,
-            reply_markup=InlineKeyboards.return_to_services(offset=pwd_offset)
+            reply_markup=Keyboards.inline.return_to_services(offset=pwd_offset)
         )
         await StorageUtils.set_message_id_to_delete(state, query.message.message_id)
     else:
         message = await query.bot.send_message(
             chat_id=query.from_user.id,
             text=ASK_MASTER_PASSWORD_TEXT,
-            reply_markup=InlineKeyboards.return_to_services(offset=pwd_offset)
+            reply_markup=Keyboards.inline.return_to_services(offset=pwd_offset)
         )
         await StorageUtils.set_message_id_to_delete(state, message.message_id)
 
@@ -124,7 +124,7 @@ async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePa
     await StorageUtils.set_pm_input_format_text(state, CREATE_PASSWORD_TEXT)
     await query.message.edit_text(
         text=CREATE_PASSWORD_TEXT,
-        reply_markup=InlineKeyboards.return_to_services(offset=0)
+        reply_markup=Keyboards.inline.return_to_services(offset=0)
     )
 
 
@@ -141,7 +141,7 @@ async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPass
 
     await query.message.edit_text(
         text=text,
-        reply_markup=InlineKeyboards.pwd_mgr_password(offset=0, service=service),
+        reply_markup=Keyboards.inline.pwd_mgr_password(offset=0, service=service),
         parse_mode="MarkdownV2"
     )
 
@@ -156,7 +156,7 @@ async def change_service(query: CallbackQuery, state: FSMContext, callback_data:
     await StorageUtils.set_pm_input_format_text(state, CHANGE_SERVICE_TEXT)
     await query.message.edit_text(
         text=CHANGE_SERVICE_TEXT,
-        reply_markup=InlineKeyboards.return_to_services(offset=0)
+        reply_markup=Keyboards.inline.return_to_services(offset=0)
     )
 
 
@@ -170,7 +170,7 @@ async def delete_service(query: CallbackQuery, state: FSMContext, callback_data:
     await StorageUtils.set_pm_input_format_text(state, DELETE_SERVICE_TEXT)
     await query.message.edit_text(
         text=DELETE_SERVICE_TEXT,
-        reply_markup=InlineKeyboards.return_to_services(offset=0)
+        reply_markup=Keyboards.inline.return_to_services(offset=0)
     )
 
 
@@ -182,7 +182,7 @@ async def delete_password(query: CallbackQuery, state: FSMContext):
     await StorageUtils.set_pm_input_format_text(state, DELETE_PASSWORD_TEXT)
     await query.message.edit_text(
         text=DELETE_PASSWORD_TEXT,
-        reply_markup=InlineKeyboards.return_to_services(offset=0)
+        reply_markup=Keyboards.inline.return_to_services(offset=0)
     )
 
 
@@ -194,7 +194,7 @@ async def import_from_file(query: CallbackQuery, state: FSMContext):
     await StorageUtils.set_pm_input_format_text(state, IMPORT_FROM_FILE_TEXT)
     await query.message.edit_text(
         text=IMPORT_FROM_FILE_TEXT,
-        reply_markup=InlineKeyboards.return_to_pwd_mgr()
+        reply_markup=Keyboards.inline.return_to_pwd_mgr()
     )
 
 
@@ -206,5 +206,5 @@ async def export_to_file(query: CallbackQuery, state: FSMContext):
     await StorageUtils.set_pm_input_format_text(state, ASK_MASTER_PASSWORD_TEXT)
     await query.message.edit_text(
         text=ASK_MASTER_PASSWORD_TEXT,
-        reply_markup=InlineKeyboards.return_to_pwd_mgr()
+        reply_markup=Keyboards.inline.return_to_pwd_mgr()
     )

@@ -4,7 +4,7 @@ from aiogram.types import Message
 from aiogram.utils.markdown import text
 
 from config import db_manager
-from keyboards import InlineKeyboards
+from keyboards import Keyboards
 from helpers import PasswordManagerHelper as PwdMgrHelper
 
 command_router = Router(name=__name__)
@@ -21,7 +21,7 @@ async def cmd_start(message: Message):
 
     await message.answer(
         text="Hello! I'm your friendly bot. How can I assist you today?",
-        reply_markup=InlineKeyboards.start_menu()
+        reply_markup=Keyboards.inline.start_menu()
     )
 
 

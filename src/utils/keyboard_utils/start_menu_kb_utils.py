@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton
 
 from models.callback_data import HashMenuCallbackData, StartMenuCallbackData, PasswordManagerCallbackData as PwdMgrCb, \
-    GeneratePasswordCallback
+    GenerateRandomPasswordCallback
 from .kb_utils import KeyboardsUtils
 
 
@@ -36,5 +36,5 @@ class StartMenuKeyboardsUtils(KeyboardsUtils):
     def gen_generate_random_password_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.generate_random_password_text,
-            callback_data=GeneratePasswordCallback.Enter()
+            callback_data=GenerateRandomPasswordCallback.Enter()
         )

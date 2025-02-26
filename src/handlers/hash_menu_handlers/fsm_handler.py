@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.utils.markdown import text
 
 from .callback_handler import HASH_MENU_ENTER_TEXT
-from keyboards import InlineKeyboards
+from keyboards import Keyboards
 from models.states import HashMenuStates
 from utils import BotUtils
 from helpers import HashMenuHelper
@@ -23,7 +23,7 @@ async def process_check_hash(message: Message, state: FSMContext):
     except Exception as e:
         return await message.answer(
             text=f"{str(e)}\n\n{HASH_MENU_ENTER_TEXT}",
-            reply_markup=InlineKeyboards.hash_menu()
+            reply_markup=Keyboards.inline.hash_menu()
         )
 
     status = "✅" if is_match else "❌"
@@ -38,6 +38,6 @@ async def process_check_hash(message: Message, state: FSMContext):
     await message.answer(
         text=response_text,
         parse_mode="Markdown",
-        reply_markup=InlineKeyboards.return_to_hash_menu_or_retry(hash_type)
+        reply_markup=Keyboards.inline.return_to_hash_menu_or_retry(hash_type)
     )
 

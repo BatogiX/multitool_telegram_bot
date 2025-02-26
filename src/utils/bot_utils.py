@@ -3,6 +3,8 @@ import re
 from aiofiles import os
 from aiogram import types
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+
 from utils.storage_utils import StorageUtils
 
 
@@ -37,11 +39,11 @@ class BotUtils:
         return temp_file_path
 
     @staticmethod
-    async def _delete_file(file_path) -> None:
+    async def _delete_file(file_path: str) -> None:
         await os.remove(file_path)
 
     @staticmethod
-    async def delete_fsm_message(state, message: types.Message) -> None:
+    async def delete_fsm_message(state: FSMContext, message: types.Message) -> None:
         """Deletes message by message_id that stores in FSM-data."""
         message_id = await StorageUtils.get_message_id_to_delete(state)
         try:
@@ -51,4 +53,4 @@ class BotUtils:
 
     @staticmethod
     def escape_markdown_v2(text: str) -> str:
-        return re.sub(r'([_*\[\]()~`>#\+\-=|{}.!])', r'\\\1', text)
+        return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)

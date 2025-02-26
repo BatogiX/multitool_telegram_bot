@@ -1,15 +1,17 @@
 # Multitool Telegram Bot
+
 ## Features
 
-- [Verify File's Checksum](https://github.com/BatogiX/multitool_telegram_bot/blob/master/src/helpers/hash_menu_helper/hash_menu_fsm.py)
-- [Password Manager (Argon2 + AES-256-GCM) with Zero-Knowledge Proof](https://github.com/BatogiX/multitool_telegram_bot/blob/master/src/helpers/pwd_mgr_helper/pwd_mgr_crypto.py)
-- [Generate Random Password](https://github.com/BatogiX/multitool_telegram_bot/blob/master/src/helpers/gen_rand_pwd_helper/gen_rand_pwd_cb.py)
+- [Verify File's Checksum](src/helpers/hash_menu_helper/hash_menu_fsm.py)
+- [Password Manager (Argon2 + AES-256-GCM) with Zero-Knowledge Proof](src/helpers/pwd_mgr_helper/pwd_mgr_crypto.py)
+- [Generate Random Password](src/helpers/gen_rand_pwd_helper/gen_rand_pwd_cb.py)
 
 ## Installation
+
 To install and set up the project, follow these steps:
    
 1. Create a virtual environment:
-    ```sh
+   ```sh
    python -m venv .venv
    ```
    
@@ -29,6 +31,7 @@ To install and set up the project, follow these steps:
     ```
 
 ### Setup environment variables:
+
 - ``BOT_TOKEN=``
 
 Either:
@@ -50,6 +53,7 @@ And:
 - `RELATIONAL_DB_NAME=`   
 
 ## Usage
+
 To start the bot, run the following command:
 ```sh
 python main.py

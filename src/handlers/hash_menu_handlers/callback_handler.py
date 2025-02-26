@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State
 from aiogram.types import CallbackQuery
 
-from keyboards import InlineKeyboards
+from keyboards import Keyboards
 from models.callback_data import HashMenuCallbackData as HashMenuCb
 from models.states import HashMenuStates
 from utils import StorageUtils
@@ -14,6 +14,7 @@ callback_router = Router(name=__name__)
 HASH_MENU_ENTER_TEXT = "Choose hash option"
 HASH_SELECTION_TEXT = "Upload file and enter expected output in caption"
 
+
 @callback_router.callback_query(HashMenuCb.Enter.filter())
 async def enter_hash_menu(callback_query: CallbackQuery, state: FSMContext):
     if await state.get_state() in HashMenuStates:
@@ -21,7 +22,7 @@ async def enter_hash_menu(callback_query: CallbackQuery, state: FSMContext):
 
     await callback_query.message.edit_text(
         text=HASH_MENU_ENTER_TEXT,
-        reply_markup=InlineKeyboards.hash_menu()
+        reply_markup=Keyboards.inline.hash_menu()
     )
 
 
@@ -36,5 +37,5 @@ async def handle_hash_selection(callback_query: CallbackQuery, state: FSMContext
 
     await callback_query.message.edit_text(
         text=HASH_SELECTION_TEXT,
-        reply_markup=InlineKeyboards.return_to_hash_menu()
+        reply_markup=Keyboards.inline.return_to_hash_menu()
     )

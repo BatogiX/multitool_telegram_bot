@@ -5,7 +5,7 @@ from aiogram.types import Message, BufferedInputFile
 
 from config import db_manager, bot_cfg
 from .callback_handler import SERVICES_TEXT, ENTER_TEXT
-from keyboards import InlineKeyboards
+from keyboards import Keyboards
 from models.states import PasswordManagerStates
 from models.db_record.password_record import DecryptedRecord, EncryptedRecord
 from utils import StorageUtils
@@ -48,7 +48,7 @@ async def create_service(message: Message, state: FSMContext):
     await message.answer(
         text=f"*Service:* {service}\nChoose your login to see password",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboards.pwd_mgr_passwords(
+        reply_markup=Keyboards.inline.pwd_mgr_passwords(
             decrypted_records=[DecryptedRecord(service=service, login=login, password=password)],
             service=service,
             pwd_offset=0,
@@ -125,7 +125,7 @@ async def delete_password(message: Message, state: FSMContext):
         services_offset = await StorageUtils.get_pm_services_offset(state)
         await message.answer(
             text=text,
-            reply_markup=InlineKeyboards.pwd_mgr_passwords(decrypted_records, service, offset, services_offset),
+            reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, offset, services_offset),
             parse_mode="Markdown"
         )
     else:
@@ -135,12 +135,12 @@ async def delete_password(message: Message, state: FSMContext):
         if services:
             await message.answer(
                 text=text + "Choose service",
-                reply_markup=InlineKeyboards.pwd_mgr_services(services=services)
+                reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
             )
         else:
             await message.answer(
                 text=text + "You don't have any services yet. Create one now?",
-                reply_markup=InlineKeyboards.pwd_mgr_no_services()
+                reply_markup=Keyboards.inline.pwd_mgr_no_services()
             )
 
 
@@ -186,7 +186,7 @@ async def change_service(message: Message, state: FSMContext):
         user_id=message.from_user.id, offset=0, limit=bot_cfg.dynamic_buttons_limit)
     await message.answer(
         text="Choose service",
-        reply_markup=InlineKeyboards.pwd_mgr_services(services=services)
+        reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
     )
 
 
@@ -210,7 +210,7 @@ async def delete_services(message: Message, state: FSMContext):
     await db_manager.relational_db.delete_services(message.from_user.id)
     await message.answer(
         text="All services deleted successfully",
-        reply_markup=InlineKeyboards.pwd_mgr_no_services()
+        reply_markup=Keyboards.inline.pwd_mgr_no_services()
     )
 
 
@@ -229,12 +229,12 @@ async def delete_service(message: Message, state: FSMContext):
         if services:
             await message.answer(
                 text=text + "Choose service",
-                reply_markup=InlineKeyboards.pwd_mgr_services(services)
+                reply_markup=Keyboards.inline.pwd_mgr_services(services)
             )
         else:
             await message.answer(
                 text=text + "You don't have any services yet. Create one now?",
-                reply_markup=InlineKeyboards.pwd_mgr_no_services()
+                reply_markup=Keyboards.inline.pwd_mgr_no_services()
             )
     else:
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_NOT_CONFIRMED, current_state)
@@ -262,13 +262,13 @@ async def import_from_file(message: Message, state: FSMContext):
     except Exception as e:
         return await message.answer(
             text=f"{str(e)}\n\n{ENTER_TEXT}",
-            reply_markup=InlineKeyboards.pwd_mgr_menu()
+            reply_markup=Keyboards.inline.pwd_mgr_menu()
         )
     services: list[str] = await db_manager.relational_db.get_services(
         message.from_user.id, offset=0, limit=bot_cfg.dynamic_buttons_limit)
     await message.answer(
         text=IMPORT_FROM_FILE_TEXT + SERVICES_TEXT,
-        reply_markup=InlineKeyboards.pwd_mgr_services(services=services)
+        reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
     )
 
 
@@ -296,5 +296,5 @@ async def export_to_file(message: Message, state: FSMContext):
     )
     await message.answer(
         text=ENTER_TEXT,
-        reply_markup=InlineKeyboards.pwd_mgr_menu()
+        reply_markup=Keyboards.inline.pwd_mgr_menu()
     )

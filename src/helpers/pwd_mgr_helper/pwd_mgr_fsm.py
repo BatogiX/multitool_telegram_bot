@@ -8,7 +8,7 @@ from aiogram.types import Message, BufferedInputFile
 from cryptography.exceptions import InvalidTag
 
 from config import db_manager, bot_cfg
-from keyboards import InlineKeyboards
+from keyboards import Keyboards
 from models.db_record.password_record import EncryptedRecord, DecryptedRecord, PasswordRecord
 from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrUtils
 from utils import BotUtils
@@ -82,7 +82,7 @@ class PasswordManagerFsmHelper(BotUtils):
         )
         await message.answer(
             text=text,
-            reply_markup=InlineKeyboards.pwd_mgr_passwords(decrypted_records, service, pwd_offset, services_offset),
+            reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwd_offset, services_offset),
             parse_mode="Markdown"
         )
 
@@ -118,7 +118,7 @@ class PasswordManagerFsmHelper(BotUtils):
         input_format: str = await StorageUtils.get_pm_input_format_text(state)
         message_to_delete: Message = await message.answer(
             text=f"{error_message}\n\n{input_format}",
-            reply_markup=InlineKeyboards.return_to_services(offset=0)
+            reply_markup=Keyboards.inline.return_to_services(offset=0)
         )
         await StorageUtils.set_message_id_to_delete(state, message_to_delete.message_id)
 

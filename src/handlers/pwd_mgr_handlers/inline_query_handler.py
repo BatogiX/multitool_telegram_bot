@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 
 from config import db_manager, bot_cfg
-from keyboards import InlinePasswordManagerKeyboard
+from keyboards import Keyboards
 from utils import InlineKeyboardsUtils as KbUtils
 
 inline_query_router = Router(name=__name__)
@@ -22,7 +22,7 @@ async def search(query: InlineQuery):
             id=service,
             title=service,
             input_message_content=InputTextMessageContent(message_text=f"🔎 {service}"),
-            reply_markup=InlinePasswordManagerKeyboard.pwd_mgr_inline_search(service)
+            reply_markup=Keyboards.inline.pwd_mgr_inline_search(service)
         ) for service in services
     ]
 
