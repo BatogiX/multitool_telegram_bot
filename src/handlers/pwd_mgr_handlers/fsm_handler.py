@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
 
 from config import db_manager, bot_cfg
-from .callback_handler import SERVICES_TEXT, ENTER_TEXT
+from .callback_handler import SERVICES_TEXT, ENTER_TEXT, NO_SERVICES_TEXT, CONFIRMATION_TEXT, SERVICE_TEXT
 from keyboards import Keyboards
 from models.states import PasswordManagerStates
 from models.db_record.password_record import DecryptedRecord, EncryptedRecord
@@ -20,6 +20,10 @@ MSG_ERROR_MASTER_PASS: str = "Wrong Master Password"
 MSG_ERROR_NOT_CONFIRMED: str = "You didn't confirm the action"
 IMPORT_FROM_FILE_TEXT: str = "Passwords were successfully imported from file\n\n"
 EXPORT_TO_FILE_TEXT: str = "Passwords were successfully exported to file\n\n"
+PASSWORD_DELETED_TEXT: str = "Password was deleted successfully\n\n"
+CHOOSE_LOGIN_TEXT: str = "\nChoose your login to see password"
+ALL_SERVICES_DELETED_TEXT: str = "All services deleted successfully"
+SERVICE_DELETED_TEXT: str = "Service was deleted successfully\n\n"
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.CreateService), F.text)
@@ -46,7 +50,7 @@ async def create_service(message: Message, state: FSMContext):
     await StorageUtils.set_service(state, service)
     services_offset = await StorageUtils.get_pm_services_offset(state)
     await message.answer(
-        text=f"*Service:* {service}\nChoose your login to see password",
+        text=SERVICE_TEXT + service + CHOOSE_LOGIN_TEXT,
         parse_mode="Markdown",
         reply_markup=Keyboards.inline.pwd_mgr_passwords(
             decrypted_records=[DecryptedRecord(service=service, login=login, password=password)],
@@ -116,30 +120,24 @@ async def delete_password(message: Message, state: FSMContext):
         decrypted_records.append(decrypted_record)
 
     if decrypted_records:
-        text: str = (
-            "Password was deleted successfully\n\n"
-            f"*Service:* {service}\n"
-            "Choose your login to see password"
-        )
         offset: int = await StorageUtils.get_pm_pwd_offset(state)
         services_offset = await StorageUtils.get_pm_services_offset(state)
         await message.answer(
-            text=text,
+            text=PASSWORD_DELETED_TEXT + SERVICE_TEXT + service + CHOOSE_LOGIN_TEXT,
             reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, offset, services_offset),
             parse_mode="Markdown"
         )
     else:
-        text: str = "Password was deleted successfully\n\n"
         services: list[str] = await db_manager.relational_db.get_services(
             message.from_user.id, offset=0, limit=bot_cfg.dynamic_buttons_limit)
         if services:
             await message.answer(
-                text=text + "Choose service",
+                text=PASSWORD_DELETED_TEXT + SERVICES_TEXT,
                 reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
             )
         else:
             await message.answer(
-                text=text + "You don't have any services yet. Create one now?",
+                text=PASSWORD_DELETED_TEXT + NO_SERVICES_TEXT,
                 reply_markup=Keyboards.inline.pwd_mgr_no_services()
             )
 
@@ -185,7 +183,7 @@ async def change_service(message: Message, state: FSMContext):
     services: list[str] = await db_manager.relational_db.get_services(
         user_id=message.from_user.id, offset=0, limit=bot_cfg.dynamic_buttons_limit)
     await message.answer(
-        text="Choose service",
+        text=SERVICES_TEXT,
         reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
     )
 
@@ -209,7 +207,7 @@ async def delete_services(message: Message, state: FSMContext):
 
     await db_manager.relational_db.delete_services(message.from_user.id)
     await message.answer(
-        text="All services deleted successfully",
+        text=ALL_SERVICES_DELETED_TEXT,
         reply_markup=Keyboards.inline.pwd_mgr_no_services()
     )
 
@@ -218,26 +216,24 @@ async def delete_services(message: Message, state: FSMContext):
 async def delete_service(message: Message, state: FSMContext):
     current_state = await PwdMgrHelper.handle_message_deletion(state, message)
 
-    answer: str = message.text.upper()
-    if answer == "I CONFIRM":
-        service: str = await StorageUtils.get_service(state)
-        await db_manager.relational_db.delete_service(message.from_user.id, service)
+    match message.text.upper():
+        case CONFIRMATION_TEXT.upper():
+            service: str = await StorageUtils.get_service(state)
+            await db_manager.relational_db.delete_service(message.from_user.id, service)
 
-        services: list[str] = await db_manager.relational_db.get_services(
-            user_id=message.from_user.id, offset=0, limit=bot_cfg.dynamic_buttons_limit)
-        text: str = "Service was deleted successfully\n\n"
-        if services:
-            await message.answer(
-                text=text + "Choose service",
-                reply_markup=Keyboards.inline.pwd_mgr_services(services)
-            )
-        else:
-            await message.answer(
-                text=text + "You don't have any services yet. Create one now?",
-                reply_markup=Keyboards.inline.pwd_mgr_no_services()
-            )
-    else:
-        return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_NOT_CONFIRMED, current_state)
+            services: list[str] = await db_manager.relational_db.get_services(user_id=message.from_user.id, offset=0, limit=bot_cfg.dynamic_buttons_limit)
+            if services:
+                await message.answer(
+                    text=SERVICE_DELETED_TEXT + SERVICES_TEXT,
+                    reply_markup=Keyboards.inline.pwd_mgr_services(services)
+                )
+            else:
+                await message.answer(
+                    text=SERVICE_DELETED_TEXT + NO_SERVICES_TEXT,
+                    reply_markup=Keyboards.inline.pwd_mgr_no_services()
+                )
+        case _:
+            return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_NOT_CONFIRMED, current_state)
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ImportFromFile), F.document)

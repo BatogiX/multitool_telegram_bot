@@ -83,9 +83,8 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
     @classmethod
     def gen_service_buttons(cls, services: list[str]) -> list[list[InlineKeyboardButton]]:
         def create_button(service: str) -> InlineKeyboardButton:
-            service = BotUtils.strip_protocol(service)
             return cls._create_button(
-                text=service,
+                text=BotUtils.strip_protocol(service),
                 callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=0)
             )
 
