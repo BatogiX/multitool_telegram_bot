@@ -4,6 +4,7 @@ from models.db_record.password_record import DecryptedRecord
 from .kb_utils import KeyboardsUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from config import bot_cfg
+from .. import BotUtils
 
 
 class PasswordManagerKeyboardsUtils(KeyboardsUtils):
@@ -82,6 +83,7 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
     @classmethod
     def gen_service_buttons(cls, services: list[str]) -> list[list[InlineKeyboardButton]]:
         def create_button(service: str) -> InlineKeyboardButton:
+            service = BotUtils.strip_protocol(service)
             return cls._create_button(
                 text=service,
                 callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=0)
