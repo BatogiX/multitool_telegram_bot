@@ -1,8 +1,9 @@
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass(frozen=True, kw_only=True)
-class EncryptedRecord:
+class EncryptedRecord(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     service: str
     iv: bytes
     tag: bytes
