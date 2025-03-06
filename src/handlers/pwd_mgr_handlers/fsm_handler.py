@@ -11,8 +11,6 @@ from models.db_record.password_record import DecryptedRecord, EncryptedRecord
 from utils import StorageUtils
 from helpers import PasswordManagerHelper as PwdMgrHelper
 
-fsm_router = Router(name=__name__)
-
 MAX_CHAR_LIMIT: int = 64
 MSG_ERROR_INVALID_FORMAT: str = "Wrong format"
 MSG_ERROR_LONG_INPUT: str = "Login or password is too long"
@@ -24,6 +22,8 @@ PASSWORD_DELETED_TEXT: str = "Password was deleted successfully\n\n"
 CHOOSE_LOGIN_TEXT: str = "\nChoose your login to see password"
 ALL_SERVICES_DELETED_TEXT: str = "All services deleted successfully"
 SERVICE_DELETED_TEXT: str = "Service was deleted successfully\n\n"
+
+fsm_router = Router(name=__name__)
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.CreateService), F.text)
@@ -38,7 +38,7 @@ async def create_service(message: Message, state: FSMContext):
     if not PwdMgrHelper.has_valid_input_length(login, password):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_LONG_INPUT, current_state)
 
-    error = PwdMgrHelper.is_master_password_valid(master_password)
+    error = PwdMgrHelper.is_master_password_weak(master_password)
     if error:
         return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
 
@@ -73,7 +73,7 @@ async def create_password(message: Message, state: FSMContext):
     if not PwdMgrHelper.has_valid_input_length(login, password):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_LONG_INPUT, current_state)
 
-    error = PwdMgrHelper.is_master_password_valid(master_password)
+    error = PwdMgrHelper.is_master_password_weak(master_password)
     if error:
         return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
 
@@ -95,7 +95,7 @@ async def delete_password(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_INVALID_FORMAT, current_state)
 
     master_password, login, password = user_input
-    error = PwdMgrHelper.is_master_password_valid(master_password)
+    error = PwdMgrHelper.is_master_password_weak(master_password)
     if error:
         return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
 
@@ -151,7 +151,7 @@ async def service_enter(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_INVALID_FORMAT, current_state)
 
     master_password: str = user_input[0]
-    error = PwdMgrHelper.is_master_password_valid(master_password)
+    error = PwdMgrHelper.is_master_password_weak(master_password)
     if error:
         return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
 
@@ -197,7 +197,7 @@ async def delete_services(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_INVALID_FORMAT, current_state)
 
     master_password: str = user_input[0]
-    error = PwdMgrHelper.is_master_password_valid(master_password)
+    error = PwdMgrHelper.is_master_password_weak(master_password)
     if error:
         return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
 
@@ -245,7 +245,7 @@ async def import_from_file(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_INVALID_FORMAT, current_state)
 
     master_password: str = user_input[0]
-    error = PwdMgrHelper.is_master_password_valid(master_password)
+    error = PwdMgrHelper.is_master_password_weak(master_password)
     if error:
         return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
 
@@ -277,7 +277,7 @@ async def export_to_file(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_INVALID_FORMAT, current_state)
 
     master_password: str = user_input[0]
-    error = PwdMgrHelper.is_master_password_valid(master_password)
+    error = PwdMgrHelper.is_master_password_weak(master_password)
     if error:
         return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
     

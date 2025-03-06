@@ -41,7 +41,7 @@ class PasswordManagerFsmHelper(BotUtils):
         return True
 
     @classmethod
-    def is_master_password_valid(cls, master_password: str) -> str:
+    def is_master_password_weak(cls, master_password: str) -> str:
         try:
             cls._validate_master_password(master_password)
         except WeakPasswordException as e:
