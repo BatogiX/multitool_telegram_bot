@@ -17,7 +17,7 @@ class PasswordManagerCryptoHelper:
 
     @staticmethod
     def _gen_iv(size: int = pwd_mgr_cfg.GCM_IV_SIZE) -> bytes:
-        """Generate salt (96-bit recommended)"""
+        """Generate initialization vector (96-bit by default)"""
         return secrets.token_bytes(size)
 
     @staticmethod
@@ -63,11 +63,11 @@ class PasswordManagerCryptoHelper:
         cipher: Cipher[modes.GCM] = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
         decryptor: CipherContext = cipher.decryptor()
         try:
-            decrypted_record: str = (decryptor.update(ciphertext) + decryptor.finalize()).decode()
+            plaintext: str = (decryptor.update(ciphertext) + decryptor.finalize()).decode()
         except InvalidTag:
             raise
         else:
-            login, password = decrypted_record.split(bot_cfg.sep)
+            login, password = plaintext.split(bot_cfg.sep)
             return DecryptedRecord(
                 service=encrypted_record.service,
                 login=login,

@@ -7,7 +7,7 @@ class BotConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BOT_", frozen=True)
 
     token: str = ...
-    admins: set[int] = set(int(id) for id in os.getenv("BOT_ADMIN_IDS", "").split(",") if id.isdigit())
+    admins: set[int] = set(int(id) for id in os.getenv(f"{model_config["env_prefix"]}ADMIN_IDS", "").split(",") if id.isdigit())
 
     sep: str = " "
     dynamic_buttons_limit: int = 16

@@ -14,7 +14,7 @@ from aiogram.fsm.storage.redis import RedisStorage
 from config import bot_cfg, db_manager
 from handlers import handlers_router
 
-
+print(bot_cfg.admins)
 async def on_startup() -> tuple[Dispatcher, Bot]:
     logging.info("Bot is starting up...")
     await db_manager.initialize()
