@@ -4,7 +4,7 @@ import asyncpg
 from asyncpg import Pool, Connection, Record
 
 from database.base import AbstractRelationDatabase
-from models.db_record.password_record import EncryptedRecord, PasswordRecord
+from models.db_record.password_record import EncryptedRecord
 
 
 class PostgresqlManager(AbstractRelationDatabase):
@@ -170,10 +170,10 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, service, ciphertext
         )
 
-    async def import_passwords(self, user_id: int, pwd_records: list[PasswordRecord]) -> None:
+    async def import_passwords(self, user_id: int, encrypted_records: list[EncryptedRecord]) -> None:
         values = [
-            (user_id, r.service, r.encrypted_record.iv, r.encrypted_record.tag, r.encrypted_record.ciphertext)
-            for r in pwd_records
+            (user_id, r.service, r.iv, r.tag, r.ciphertext)
+            for r in encrypted_records
         ]
 
         query = """
@@ -184,25 +184,22 @@ class PostgresqlManager(AbstractRelationDatabase):
         await self._execute(
             query,
             [v[0] for v in values],  # user_id
-            [v[1] for v in values],  # service
-            [v[2] for v in values],  # iv
-            [v[3] for v in values],  # tag
-            [v[4] for v in values]  # ciphertext
+            [v[1] for v in values],        # service
+            [v[2] for v in values],        # iv
+            [v[3] for v in values],        # tag
+            [v[4] for v in values]         # ciphertext
         )
 
-    async def export_passwords(self, user_id: int) -> list[PasswordRecord] | None:
+    async def export_passwords(self, user_id: int) -> list[EncryptedRecord] | None:
         records = await self._fetch_all(
             "SELECT service, iv, tag, ciphertext FROM public.passwords WHERE user_id = $1",
             user_id
         )
-        return [PasswordRecord(
-                service=record["service"],
-                encrypted_record=EncryptedRecord(
-                    service=record.get("service"),
-                    iv=record.get("iv"),
-                    tag=record.get("tag"),
-                    ciphertext=record.get("ciphertext")
-                )
+        return [EncryptedRecord(
+                service=record.get("service"),
+                iv=record.get("iv"),
+                tag=record.get("tag"),
+                ciphertext=record.get("ciphertext")
         ) for record in records]
 
     async def inline_search_service(self, user_id: int, service: str, limit: int) -> list[str]:

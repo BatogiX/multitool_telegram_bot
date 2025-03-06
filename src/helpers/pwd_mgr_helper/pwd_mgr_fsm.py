@@ -9,7 +9,7 @@ from cryptography.exceptions import InvalidTag
 
 from config import db_manager, bot_cfg
 from keyboards import Keyboards
-from models.db_record.password_record import EncryptedRecord, DecryptedRecord, PasswordRecord
+from models.db_record.password_record import EncryptedRecord, DecryptedRecord
 from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrUtils
 from utils import BotUtils
 from utils.storage_utils import StorageUtils
@@ -132,34 +132,32 @@ class PasswordManagerFsmHelper(BotUtils):
 
     @classmethod
     async def process_importing_from_file(cls, message: Message, key: bytes):
-        temp_file_path = await cls.download_file(message)
+        temp_file_path: str = await cls.download_file(message)
 
         async with aiofiles.open(temp_file_path, "r") as f:
-            content = await f.read()
-            lines = content.splitlines()
+            content: str = await f.read()
+            lines: list[str] = content.splitlines()
 
-        pwd_records: list[PasswordRecord] = []
+        encrypted_records: list[EncryptedRecord] = []
         reader = csv.DictReader(lines)
         for row in reader:
-            service = row.get("url", "").replace(bot_cfg.sep, "")
-            if not service:
-                continue
-            login = row.get("username", "").replace(bot_cfg.sep, "")
-            password = row.get("password", "").replace(bot_cfg.sep, "")
-            encrypted_record = PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key)
-            pwd_records.append(PasswordRecord(service=service, encrypted_record=encrypted_record))
+            service: str = row.get("url", "").replace(bot_cfg.sep, "")
+            login: str = row.get("username", "").replace(bot_cfg.sep, "")
+            password: str = row.get("password", "").replace(bot_cfg.sep, "")
+            if service and login and password:
+                encrypted_records.append(PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key))
 
-        await db_manager.relational_db.import_passwords(user_id=message.from_user.id, pwd_records=pwd_records)
+        await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
         await cls._delete_file(temp_file_path)
 
     @staticmethod
     async def process_exporting_to_file(key: bytes, user_id: int) -> BufferedInputFile:
-        pwd_records: list[PasswordRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
+        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
 
         csv_lines = ['"url","username","password"']
-        for pwd_record in pwd_records:
+        for encrypted_record in encrypted_records:
             decrypted_record: DecryptedRecord = PwdMgrUtils.decrypt_record(
-                encrypted_record=pwd_record.encrypted_record,
+                encrypted_record=encrypted_record,
                 key=key
             )
             csv_lines.append(f'"{decrypted_record.service}","{decrypted_record.login}","{decrypted_record.password}"')
