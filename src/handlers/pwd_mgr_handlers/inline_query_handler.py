@@ -10,7 +10,7 @@ inline_query_router = Router(name=__name__)
 
 @inline_query_router.inline_query(F.query.startswith(KbUtils.inline_query_search_service))
 async def search(query: InlineQuery):
-    search_text = query.query.replace("service=", "")
+    search_text = query.query.replace(f"{KbUtils.inline_query_search_service}", "")
 
     services: list[str] = await db_manager.relational_db.inline_search_service(
         user_id=query.from_user.id,
