@@ -4,9 +4,9 @@ from .pwd_mgr_fsm import PasswordManagerFsmHelper
 
 class PasswordManagerHelper(
     PasswordManagerCryptoHelper,
-    PasswordManagerFsmHelper
+    PasswordManagerFsmHelper,
 ):
     pass
 
 
-__all__ = "PasswordManagerUtils"
+__all__ = "PasswordManagerHelper"

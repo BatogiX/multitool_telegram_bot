@@ -8,17 +8,21 @@ from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from models.states import PasswordManagerStates
 from utils import StorageUtils, BotUtils
 
-ENTER_TEXT = "Choose option"
-IMPORT_FROM_FILE_TEXT = "Please send the .csv file and enter your Master Password in caption"
-SERVICES_TEXT = "*SERVICES*\n\nChoose service"
-NO_SERVICES_TEXT = "*SERVICES*\n\nYou don't have any services yet. Create one now?"
-DELETE_SERVICES_TEXT = "Are you sure you want to delete all services?\n\nIf yes - please enter your Master Password"
-ASK_MASTER_PASSWORD_TEXT = "Please enter your Master Password"
-CREATE_PASSWORD_TEXT = "Please enter your <Master Password> <login> <password>"
-CHANGE_SERVICE_TEXT = "Please enter new service name"
-DELETE_SERVICE_TEXT = "Are you sure you want to delete this service?\n\nIf yes - please enter \"I CONFIRM\""
-DELETE_PASSWORD_TEXT = "Are you sure you want to delete this password?\n\nIf yes - please enter your <Master Password> <login> <password>"
-CREATE_SERVICE_TEXT = "Please enter <Master Password> <service name> <login> <password>"
+ENTER_TEXT: str = "Choose option"
+IMPORT_FROM_FILE_TEXT: str = "Please send the .csv file and enter your Master Password in caption"
+SERVICES_TEXT: str = "Choose service"
+NO_SERVICES_TEXT: str = "You don't have any services yet. Create one now?"
+DELETE_SERVICES_TEXT: str = "Are you sure you want to delete all services?\n\nIf yes - please enter your Master Password"
+ASK_MASTER_PASSWORD_TEXT: str = "Please enter your Master Password"
+CREATE_PASSWORD_TEXT: str = "Please enter your <Master Password> <login> <password>"
+CHANGE_SERVICE_TEXT: str = "Please enter new service name"
+CONFIRMATION_TEXT: str = "\"I CONFIRM\""
+DELETE_SERVICE_TEXT: str = f"Are you sure you want to delete this service?\n\nIf yes - please enter {CONFIRMATION_TEXT}"
+DELETE_PASSWORD_TEXT: str = "Are you sure you want to delete this password?\n\nIf yes - please enter your <Master Password> <login> <password>"
+CREATE_SERVICE_TEXT: str = "Please enter <Master Password> <service name> <login> <password>"
+SERVICE_TEXT = "*Service*: "
+LOGIN_TEXT = "\n\n*Login*: "
+PASSWORD_TEXT = "\n*Password*: "
 WARNING: str = (
     "❗WARNING❗\n"
     "If you lose your Master Password you won't be able to decrypt your passwords. "
@@ -134,9 +138,9 @@ async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPass
     service: str = BotUtils.escape_markdown_v2(await StorageUtils.get_service(state))
 
     text = (
-        f"*Service*: {service}\n\n"
-        f"*Login*: `{login}`\n"
-        f"*Password*: `{password}`"
+        SERVICE_TEXT + service +
+        LOGIN_TEXT + f"`{login}`" +
+        PASSWORD_TEXT + f"`{password}`"
     )
 
     await query.message.edit_text(

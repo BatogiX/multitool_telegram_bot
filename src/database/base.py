@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from models.db_record.password_record import EncryptedRecord, PasswordRecord
+from models.db_record.password_record import EncryptedRecord
 
 
 class AbstractDatabase(ABC):
@@ -103,11 +103,11 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Delete a password for a user."""
 
     @abstractmethod
-    async def import_passwords(self, user_id: int, pwd_records: list[PasswordRecord]) -> None:
+    async def import_passwords(self, user_id: int, encrypted_records: list[EncryptedRecord]) -> None:
         """Import passwords for a user."""
 
     @abstractmethod
-    async def export_passwords(self, user_id: int) -> list[PasswordRecord] | None:
+    async def export_passwords(self, user_id: int) -> list[EncryptedRecord] | None:
         """Import passwords for a user."""
 
     @abstractmethod

@@ -3,14 +3,14 @@ from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessag
 
 from config import db_manager, bot_cfg
 from keyboards import Keyboards
-from utils import InlineKeyboardsUtils as KbUtils
+from utils import InlineKeyboardsUtils as KbUtils, BotUtils
 
 inline_query_router = Router(name=__name__)
 
 
 @inline_query_router.inline_query(F.query.startswith(KbUtils.inline_query_search_service))
 async def search(query: InlineQuery):
-    search_text = query.query.replace("service=", "")
+    search_text = query.query.replace(f"{KbUtils.inline_query_search_service}", "")
 
     services: list[str] = await db_manager.relational_db.inline_search_service(
         user_id=query.from_user.id,
@@ -20,9 +20,9 @@ async def search(query: InlineQuery):
     articles = [
         InlineQueryResultArticle(
             id=service,
-            title=service,
+            title=(clean_service := BotUtils.strip_protocol(service)),
             input_message_content=InputTextMessageContent(message_text=f"🔎 {service}"),
-            reply_markup=Keyboards.inline.pwd_mgr_inline_search(service)
+            reply_markup=Keyboards.inline.pwd_mgr_inline_search(clean_service)
         ) for service in services
     ]
 
