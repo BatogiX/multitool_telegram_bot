@@ -20,9 +20,9 @@ async def search(query: InlineQuery):
     articles = [
         InlineQueryResultArticle(
             id=service,
-            title=(clean_service := BotUtils.strip_protocol(service)),
+            title=BotUtils.strip_protocol(service),
             input_message_content=InputTextMessageContent(message_text=f"🔎 {service}"),
-            reply_markup=Keyboards.inline.pwd_mgr_inline_search(clean_service)
+            reply_markup=Keyboards.inline.pwd_mgr_inline_search(service)
         ) for service in services
     ]
 
