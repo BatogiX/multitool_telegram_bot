@@ -14,27 +14,42 @@ from argon2 import (
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from config import db_manager
+
 DEFAULT_RANDOM_NONCE_LENGTH = 16
 
+class PasswordManagerCryptoHelper:
+    @classmethod
+    async def is_master_password_valid(cls, master_password: str, user_id: int) -> bool:
+        """Verifies correctness of master password."""
+        rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_password(user_id)
+        if rand_encrypted_record:
+            try:
+                DecryptedRecord.decrypt(rand_encrypted_record, master_password)
+            except InvalidTag:
+                return False
+        return True
 
-def derive_key(master_password: str, salt: bytes) -> bytes:
-    """
-    Derive a 256-bit encryption key from a master password using Argon2.
+    @staticmethod
+    def derive_key(master_password: str, salt: bytes) -> bytes:
+        """
+        Derive a 256-bit encryption key from a master password using Argon2.
 
-    :param master_password: The user-provided master password.
-    :param salt: Salt for key derivation.
-    :return: A securely derived 256-bit key.
-    """
-    raw_key = hash_secret_raw(
-        secret=master_password.encode(),
-        salt=salt,
-        time_cost=DEFAULT_TIME_COST,
-        memory_cost=DEFAULT_MEMORY_COST,
-        parallelism=DEFAULT_PARALLELISM,
-        hash_len=DEFAULT_HASH_LENGTH,
-        type=Type.ID
-    )
-    return raw_key
+        :param master_password: The user-provided master password.
+        :param salt: Salt for key derivation.
+        :return: A securely derived 256-bit key.
+        """
+        raw_key = hash_secret_raw(
+            secret=master_password.encode(),
+            salt=salt,
+            time_cost=DEFAULT_TIME_COST,
+            memory_cost=DEFAULT_MEMORY_COST,
+            parallelism=DEFAULT_PARALLELISM,
+            hash_len=DEFAULT_HASH_LENGTH,
+            type=Type.ID
+        )
+        return raw_key
+
 
 
 @dataclass(frozen=True)

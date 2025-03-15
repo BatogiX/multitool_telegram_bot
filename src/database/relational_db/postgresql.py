@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional
 import asyncpg
 from asyncpg import Pool, Connection, Record
 
+from config.db_config import RelationalDatabaseConfig
 from database.base import AbstractRelationDatabase
 
 if TYPE_CHECKING:
@@ -16,35 +17,33 @@ class PostgresqlManager(AbstractRelationDatabase):
     """
     Implementation of a relational database manager for PostgreSQL.
     """
-    _pool: Pool | None = None
+    def __init__(self) -> None:
+        self.pool: Optional[Pool] = None
+        self.c = RelationalDatabaseConfig()
 
     async def connect(self) -> None:
         """
         Connect to PostgreSQL using DSN if available, otherwise using individual parameters.
         """
-        if self._pool is None:
-            self._pool = await asyncpg.create_pool(
-                dsn=self._c.url,
-                min_size=self._c.min_pool_size,
-                max_size=self._c.max_pool_size,
-                max_queries=self._c.max_queries
-            ) if self._c.url else await asyncpg.create_pool(
-                host=self._c.host,
-                port=self._c.port,
-                user=self._c.user,
-                password=self._c.password,
-                database=self._c.name,
-                min_size=self._c.min_pool_size,
-                max_size=self._c.max_pool_size,
-                max_queries=self._c.max_queries
+        if self.pool is None:
+            self.pool = await asyncpg.create_pool(
+                dsn=self.c.url if self.c.url else None,
+                host=None if self.c.url else self.c.host,
+                port=None if self.c.url else self.c.port,
+                user=None if self.c.url else self.c.user,
+                password=None if self.c.url else self.c.password,
+                database=None if self.c.url else self.c.name,
+                min_size=self.c.min_pool_size,
+                max_size=self.c.max_pool_size,
+                max_queries=self.c.max_queries
             )
-            logging.info(f"Connected to PostgreSQL via {'URL' if self._c.url else 'host/port'}")
+            logging.info(f"Connected to PostgreSQL via {'URL' if self.c.url else 'host/port'}")
 
     async def close(self) -> None:
-        if self._pool:
-            await self._pool.close()
+        if self.pool:
+            await self.pool.close()
             logging.info("Disconnected from PostgreSQL")
-            self._pool = None
+            self.pool = None
 
     async def init_db(self) -> None:
         await self._execute(
@@ -74,14 +73,14 @@ class PostgresqlManager(AbstractRelationDatabase):
             '''
         )
 
-    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str, salt: bytes) -> None:
+    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
         await self._execute(
             """
-            INSERT INTO public.users (user_id, user_name, full_name, salt)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO public.users (user_id, user_name, full_name)
+            VALUES ($1, $2, $3)
             ON CONFLICT (user_id) DO NOTHING
             """,
-            user_id, user_name, full_name, salt
+            user_id, user_name, full_name
         )
 
     async def get_services(self, user_id: int, offset: int, limit: int) -> Optional[list[str]]:
@@ -91,39 +90,29 @@ class PostgresqlManager(AbstractRelationDatabase):
         )
         return [record.get("service") for record in records]
 
-    async def get_salt(self, user_id: int) -> bytes:
-        return await self._fetch_value(
-            "SELECT salt FROM public.users WHERE user_id = $1",
-            user_id
-        )
-
-    async def create_password(self, user_id: int, service: str, iv: bytes, tag: bytes, ciphertext: bytes) -> None:
+    async def create_password(self, user_id: int, service: str, ciphertext: str) -> None:
         await self._execute(
-            "INSERT INTO public.passwords (user_id, service, iv, tag, ciphertext) VALUES ($1, $2, $3, $4, $5)",
-            user_id, service, iv, tag, ciphertext
+            "INSERT INTO public.passwords (user_id, service, ciphertext) VALUES ($1, $2, $3)",
+            user_id, service, ciphertext
         )
 
     async def get_passwords(self, user_id: int, service: str, offset: int, limit: int) -> Optional[list[EncryptedRecord]]:
         records: list[Record] = await self._fetch_all(
-            "SELECT service, iv, tag, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
+            "SELECT service, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
             user_id, service, offset, limit + 1
         )
         return [EncryptedRecord(
             service=record.get("service"),
-            iv=record.get("iv"),
-            tag=record.get('tag'),
             ciphertext=record.get('ciphertext')
         ) for record in records]
 
     async def get_rand_password(self, user_id: int) -> Optional[EncryptedRecord]:
         record: Record = await self._fetch_row(
-            "SELECT service, iv, tag, ciphertext FROM public.passwords WHERE user_id = $1",
+            "SELECT service, ciphertext FROM public.passwords WHERE user_id = $1",
             user_id
         )
         return EncryptedRecord(
             service=record.get("service"),
-            iv=record.get("iv"),
-            tag=record.get('tag'),
             ciphertext=record.get('ciphertext')
         ) if record else None
 
@@ -145,7 +134,7 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, service
         )
 
-    async def delete_password(self, user_id: int, service: str, ciphertext: bytes) -> None:
+    async def delete_password(self, user_id: int, service: str, ciphertext: str) -> None:
         await self._execute(
             "DELETE FROM public.passwords WHERE user_id = $1 AND service = $2 AND ciphertext = $3",
             user_id, service, ciphertext
@@ -153,33 +142,29 @@ class PostgresqlManager(AbstractRelationDatabase):
 
     async def import_passwords(self, user_id: int, encrypted_records: list[EncryptedRecord]) -> None:
         values = [
-            (user_id, r.service, r.iv, r.tag, r.ciphertext)
+            (user_id, r.service, r.ciphertext)
             for r in encrypted_records
         ]
 
         query = """
-        INSERT INTO public.passwords (user_id, service, iv, tag, ciphertext)
-        SELECT * FROM unnest($1::int[], $2::text[], $3::bytea[], $4::bytea[], $5::bytea[])
+        INSERT INTO public.passwords (user_id, service, ciphertext)
+        SELECT * FROM unnest($1::int[], $2::text[], $3::text[])
         """
 
         await self._execute(
             query,
             [v[0] for v in values],  # user_id
-            [v[1] for v in values],  # service
-            [v[2] for v in values],  # iv
-            [v[3] for v in values],  # tag
-            [v[4] for v in values]  # ciphertext
+            [v[1] for v in values],        # service
+            [v[2] for v in values]         # ciphertext
         )
 
     async def export_passwords(self, user_id: int) -> Optional[list[EncryptedRecord]]:
         records = await self._fetch_all(
-            "SELECT service, iv, tag, ciphertext FROM public.passwords WHERE user_id = $1",
+            "SELECT service, ciphertext FROM public.passwords WHERE user_id = $1",
             user_id
         )
         return [EncryptedRecord(
             service=record.get("service"),
-            iv=record.get("iv"),
-            tag=record.get("tag"),
             ciphertext=record.get("ciphertext")
         ) for record in records]
 
@@ -191,21 +176,21 @@ class PostgresqlManager(AbstractRelationDatabase):
         return [record.get("service") for record in records]
 
     async def _execute(self, query: str, *args) -> None:
-        async with self._pool.acquire() as conn:
+        async with self.pool.acquire() as conn:
             conn: Connection
             await conn.execute(query, *args)
 
     async def _fetch_row(self, query: str, *args) -> Optional[Record]:
-        async with self._pool.acquire() as conn:
+        async with self.pool.acquire() as conn:
             conn: Connection
             return await conn.fetchrow(query, *args)
 
     async def _fetch_value(self, query: str, *args) -> any:
-        async with self._pool.acquire() as conn:
+        async with self.pool.acquire() as conn:
             conn: Connection
             return await conn.fetchval(query, *args)
 
     async def _fetch_all(self, query: str, *args) -> Optional[list[Record]]:
-        async with self._pool.acquire() as conn:
+        async with self.pool.acquire() as conn:
             conn: Connection
             return await conn.fetch(query, *args)

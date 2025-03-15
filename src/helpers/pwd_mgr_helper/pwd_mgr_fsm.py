@@ -5,15 +5,13 @@ from io import BytesIO
 import aiofiles
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
-from cryptography.exceptions import InvalidTag
 
 from config import bot_cfg, db_manager
 from keyboards import Keyboards
-from helpers.pwd_mgr_helper.pwd_mgr_crypto import PasswordManagerCryptoHelper
-from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrUtils
 from utils import BotUtils
 from utils.storage_utils import StorageUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
+from . import EncryptedRecord, DecryptedRecord
 from .weak_pwd_exception import WeakPasswordException
 
 MAX_CHAR_LIMIT: int = 64
@@ -33,7 +31,7 @@ class PasswordManagerFsmHelper(BotUtils):
             raise WeakPasswordException("The Master Password must contain at least one lowercase letter.")
 
         if not re.search(r'[0-9]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one number.")
+            raise WeakPasswordException("The Master Password must contain at least one digit.")
 
         if not re.search(r'[\W_]', master_password):
             raise WeakPasswordException("The Master Password must contain at least one special character.")
@@ -49,24 +47,10 @@ class PasswordManagerFsmHelper(BotUtils):
         return ""
 
     @staticmethod
-    async def derive_key_from_master_password(master_password: str, message: Message) -> bytes:
-        """derives a key, and verifies correctness."""
-        salt: bytes = await db_manager.relational_db.get_salt(message.from_user.id)
-        key: bytes = PwdMgrUtils.derive_key(master_password, salt)
-        rand_encrypted_record: PasswordManagerCryptoHelper.EncryptedRecord = await db_manager.relational_db.get_rand_password(message.from_user.id)
-
-        if rand_encrypted_record:
-            try:
-                PwdMgrUtils.decrypt_record(encrypted_record=rand_encrypted_record, key=key)
-            except InvalidTag:
-                return b""
-        return key
-
-    @staticmethod
-    async def show_service_logins(message: Message, state: FSMContext, key: bytes, service: str) -> None:
-        pwd_offset: int = await StorageUtils.get_pm_pwd_offset(state)
-        services_offset: int = await StorageUtils.get_pm_services_offset(state)
-        encrypted_records: list[PasswordManagerCryptoHelper.EncryptedRecord] = await db_manager.relational_db.get_passwords(
+    async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> None:
+        pwd_offset = await StorageUtils.get_pm_pwd_offset(state)
+        services_offset = await StorageUtils.get_pm_services_offset(state)
+        encrypted_records = await db_manager.relational_db.get_passwords(
             user_id=message.from_user.id,
             service=service,
             offset=pwd_offset,
@@ -74,9 +58,8 @@ class PasswordManagerFsmHelper(BotUtils):
         )
         decrypted_records: list[DecryptedRecord] = []
         for encrypted_record in encrypted_records:
-            decrypted_record: DecryptedRecord = PwdMgrUtils.decrypt_record(encrypted_record=encrypted_record, key=key)
-            decrypted_records.append(decrypted_record)
-        text: str = (
+            decrypted_records.append(DecryptedRecord.decrypt(encrypted_record, master_password))
+        text = (
             f"*Service:* {service}\n"
             "Choose your login to see password"
         )
@@ -92,15 +75,9 @@ class PasswordManagerFsmHelper(BotUtils):
         return len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") <= MAX_CHAR_LIMIT
 
     @staticmethod
-    async def create_password_record(login: str, password: str, service: str, message: Message, key: bytes) -> None:
-        encrypted_record = PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key)
-        await db_manager.relational_db.create_password(
-            user_id=message.from_user.id,
-            service=encrypted_record.service,
-            iv=encrypted_record.iv,
-            tag=encrypted_record.tag,
-            ciphertext=encrypted_record.ciphertext
-        )
+    async def create_password_record(decrypted_record: DecryptedRecord, user_id: int, master_password: str) -> None:
+        encrypted_record = EncryptedRecord.encrypt(decrypted_record, master_password)
+        await db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext)
 
     @staticmethod
     async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> tuple:
@@ -115,8 +92,8 @@ class PasswordManagerFsmHelper(BotUtils):
             current_state: str,
     ) -> None:
         await state.set_state(current_state)
-        input_format: str = await StorageUtils.get_pm_input_format_text(state)
-        message_to_delete: Message = await message.answer(
+        input_format = await StorageUtils.get_pm_input_format_text(state)
+        message_to_delete = await message.answer(
             text=f"{error_message}\n\n{input_format}",
             reply_markup=Keyboards.inline.return_to_services(offset=0)
         )
@@ -124,46 +101,43 @@ class PasswordManagerFsmHelper(BotUtils):
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:
-        current_state: str = await state.get_state()
+        current_state = await state.get_state()
         await state.set_state(None)
         await BotUtils.delete_fsm_message(state, message)
         await message.delete()
         return current_state
 
     @classmethod
-    async def process_importing_from_file(cls, message: Message, key: bytes):
+    async def process_importing_from_file(cls, message: Message, master_password: str):
         temp_file_path: str = await cls.download_file(message)
 
         async with aiofiles.open(temp_file_path, "r") as f:
             content: str = await f.read()
             lines: list[str] = content.splitlines()
 
-        encrypted_records: list[PasswordManagerCryptoHelper.EncryptedRecord] = []
+        encrypted_records: list[EncryptedRecord] = []
         reader = csv.DictReader(lines)
         for row in reader:
             service: str = row.get("url", "").replace(bot_cfg.sep, "")
             login: str = row.get("username", "").replace(bot_cfg.sep, "")
             password: str = row.get("password", "").replace(bot_cfg.sep, "")
+            decrypted_record = DecryptedRecord(service, login, password)
             if service and login and password:
-                encrypted_records.append(PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key))
+                encrypted_records.append(EncryptedRecord.encrypt(decrypted_record, master_password))
 
         await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
         await cls._delete_file(temp_file_path)
 
     @staticmethod
-    async def process_exporting_to_file(key: bytes, user_id: int) -> BufferedInputFile:
-        encrypted_records: list[PasswordManagerCryptoHelper.EncryptedRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
+    async def process_exporting_to_file(master_password: str, user_id: int) -> BufferedInputFile:
+        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
 
         csv_lines = ['"url","username","password"']
         for encrypted_record in encrypted_records:
-            decrypted_record: DecryptedRecord = PwdMgrUtils.decrypt_record(
-                encrypted_record=encrypted_record,
-                key=key
-            )
+            decrypted_record: DecryptedRecord = DecryptedRecord.decrypt(encrypted_record, master_password)
             csv_lines.append(f'"{decrypted_record.service}","{decrypted_record.login}","{decrypted_record.password}"')
 
         csv_content = "\n".join(csv_lines).encode('utf-8')
         buffer = BytesIO(csv_content)
 
         return BufferedInputFile(file=buffer.read(), filename=f"{user_id}_passwords.csv")
-

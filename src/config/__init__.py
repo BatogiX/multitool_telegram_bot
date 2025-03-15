@@ -11,7 +11,7 @@ from database.key_value_db import RedisManager, MemoryStorageManager
 bot_cfg = BotConfig()
 pwd_mgr_cfg = PasswordManagerConfig()
 db_manager = DatabaseManager(
-    key_value_db=RedisManager(),
+    key_value_db=RedisManager(data_ttl=1800),
     relational_db=PostgresqlManager()
 )
 

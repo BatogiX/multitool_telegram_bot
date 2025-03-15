@@ -11,7 +11,7 @@ class KeyValueDatabaseConfig(BaseSettings):
     password: str = ""
     url: str = "key_value_db://localhost:6379"
 
-    max_pool_size: int = 10
+    max_pool_size: int = Field(default=10, ge=1)
 
 
 class RelationalDatabaseConfig(BaseSettings):
@@ -30,6 +30,6 @@ class RelationalDatabaseConfig(BaseSettings):
         )
     )
 
-    min_pool_size: int = 1
-    max_pool_size: int = 10
-    max_queries: int = 1000
+    min_pool_size: int = Field(default=1, ge=1)
+    max_pool_size: int = Field(default=10, ge=1)
+    max_queries: int = Field(default=1000, ge=1)

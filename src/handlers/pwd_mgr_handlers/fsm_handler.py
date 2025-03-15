@@ -46,7 +46,7 @@ async def create_service(message: Message, state: FSMContext):
     if not key:
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_MASTER_PASS, current_state)
 
-    await PwdMgrHelper.create_password_record(login, password, service, message, key)
+    await PwdMgrHelper.create_password_record(service, message, key)
     await StorageUtils.set_service(state, service)
     services_offset = await StorageUtils.get_pm_services_offset(state)
     await message.answer(
@@ -82,7 +82,7 @@ async def create_password(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_MASTER_PASS, current_state)
 
     service: str = await StorageUtils.get_service(state)
-    await PwdMgrHelper.create_password_record(login, password, service, message, key)
+    await PwdMgrHelper.create_password_record(service, message, key)
     await PwdMgrHelper.show_service_logins(message, state, key, service)
 
 
@@ -254,7 +254,7 @@ async def import_from_file(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_MASTER_PASS, current_state)
 
     try:
-        await PwdMgrHelper.process_importing_from_file(message=message, key=key)
+        await PwdMgrHelper.process_importing_from_file(message=message, master_password=master_password)
     except Exception as e:
         return await message.answer(
             text=f"{str(e)}\n\n{ENTER_TEXT}",
@@ -285,7 +285,7 @@ async def export_to_file(message: Message, state: FSMContext):
     if not key:
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_MASTER_PASS, current_state)
     
-    document: BufferedInputFile = await PwdMgrHelper.process_exporting_to_file(key=key, user_id=message.from_user.id)
+    document: BufferedInputFile = await PwdMgrHelper.process_exporting_to_file(master_password=key, user_id=message.from_user.id)
     await message.answer_document(
         document=document,
         caption=EXPORT_TO_FILE_TEXT

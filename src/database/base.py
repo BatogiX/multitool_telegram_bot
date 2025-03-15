@@ -68,7 +68,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Initialize database."""
 
     @abstractmethod
-    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str, salt: bytes) -> None:
+    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
         """Create a new user in the database."""
 
     @abstractmethod
@@ -76,12 +76,8 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Get all services for a user."""
 
     @abstractmethod
-    async def create_password(self, user_id: int, service: str, iv: bytes, tag: bytes, ciphertext: bytes) -> None:
+    async def create_password(self, user_id: int, service: str, ciphertext: bytes) -> None:
         """Create a new service for a user."""
-
-    @abstractmethod
-    async def get_salt(self, user_id: int) -> bytes:
-        """Get salt for a user."""
 
     @abstractmethod
     async def get_passwords(self, user_id: int, service: str, offset: int, limit: int) -> list[EncryptedRecord]:

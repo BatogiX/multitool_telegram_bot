@@ -5,20 +5,13 @@ from aiogram.utils.markdown import text
 
 from config import db_manager
 from keyboards import Keyboards
-from helpers import PasswordManagerHelper as PwdMgrHelper
 
 command_router = Router(name=__name__)
 
 
 @command_router.message(CommandStart())
 async def cmd_start(message: Message):
-    await db_manager.relational_db.create_user_if_not_exists(
-        user_id=message.from_user.id,
-        user_name=message.from_user.username,
-        full_name=message.from_user.full_name,
-        salt=PwdMgrHelper.gen_salt()
-    )
-
+    await db_manager.relational_db.create_user_if_not_exists(message.from_user.id, message.from_user.username, message.from_user.full_name)
     await message.answer(
         text="Hello! I'm your friendly bot. How can I assist you today?",
         reply_markup=Keyboards.inline.start_menu()
