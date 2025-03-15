@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardButton
 
-from models.db_record.password_record import DecryptedRecord
+
 from .kb_utils import KeyboardsUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from config import bot_cfg
@@ -91,8 +91,8 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return cls._gen_dynamic_buttons(services, create_button)
 
     @classmethod
-    def gen_pwd_buttons(cls, decrypted_records: list[DecryptedRecord]) -> list[list[InlineKeyboardButton]]:
-        def create_button(record: DecryptedRecord) -> InlineKeyboardButton:
+    def gen_pwd_buttons(cls, decrypted_records: list["DecryptedRecord"]) -> list[list[InlineKeyboardButton]]:
+        def create_button(record: "DecryptedRecord") -> InlineKeyboardButton:
             return cls._create_button(
                 text=record.login,
                 callback_data=PwdMgrCb.EnterPassword(login=record.login, password=record.password)
@@ -125,7 +125,7 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         ) if offset > 0 else None
 
     @classmethod
-    def gen_next_page_pwds_button(cls, decrypted_records: list[DecryptedRecord], offset: int, service: str) -> InlineKeyboardButton | None:
+    def gen_next_page_pwds_button(cls, decrypted_records: list["DecryptedRecord"], offset: int, service: str) -> InlineKeyboardButton | None:
         if len(decrypted_records) > bot_cfg.dynamic_buttons_limit:
             decrypted_records.pop()
             return cls._create_button(

@@ -1,8 +1,3 @@
-import os
-import sys
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
-
 import asyncio
 import logging
 
@@ -19,10 +14,9 @@ async def on_startup() -> tuple[Dispatcher, Bot]:
     logging.info("Bot is starting up...")
     await db_manager.initialize()
 
-    dispatcher = Dispatcher(storage=RedisStorage(await db_manager.key_value_db.connect()))
+    dispatcher = Dispatcher(storage=db_manager.key_value_db.storage)
     dispatcher.include_router(handlers_router)
-    bot = Bot(token=bot_cfg.token, default_bot_properties=DefaultBotProperties(parse_mode=ParseMode.HTML))
-
+    bot = Bot(token=bot_cfg.token, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
     return dispatcher, bot
 
 

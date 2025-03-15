@@ -1,46 +1,51 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
+from typing import Optional, TYPE_CHECKING, Any
 
-from models.db_record.password_record import EncryptedRecord
+from aiogram.fsm.storage.base import BaseStorage
+
+if TYPE_CHECKING:
+    from helpers.pwd_mgr_helper.pwd_mgr_crypto import EncryptedRecord
 
 
 class AbstractDatabase(ABC):
     """Base abstract class for all DBs."""
 
     @abstractmethod
-    async def connect(self):
+    async def connect(self) -> None:
         """Method for establishing a connection to the database."""
 
     @abstractmethod
-    async def disconnect(self):
+    async def close(self) -> None:
         """Method for closing a connection."""
 
 
 class AbstractKeyValueDatabase(AbstractDatabase):
     """Abstract class for key-value storage (Redis, Memcached)."""
-
-    def __init__(self):
-        from config.db_config import KeyValueDatabaseConfig
-        self._c = KeyValueDatabaseConfig()
+    storage: BaseStorage
 
     @abstractmethod
-    async def get(self, key: str):
-        """Get value by key."""
+    async def set(self, key: str, value: Any, expire: Optional[int] = None) -> None:
+        """
+        Sets a value with an optional expiration time.
+
+        :param key: The key to store the value under.
+        :param value: The value to store.
+        :param expire: Optional expiration time in seconds.
+        """
 
     @abstractmethod
-    async def set(self, key: str, value: str, expire: int = None):
-        """Set a value by key with expiration option."""
+    async def get(self, key: str) -> Optional[str]:
+        """
+        Gets a value.
 
-    @abstractmethod
-    async def delete(self, key: str):
-        """Delete key from storage."""
+        :param key: The key to retrieve.
+        :return: The stored value or None if not found.
+        """
 
 
 class AbstractRelationDatabase(AbstractDatabase):
     """Abstract class for relational databases."""
-
-    def __init__(self):
-        from config.db_config import RelationalDatabaseConfig
-        self._c = RelationalDatabaseConfig()
 
     @abstractmethod
     async def _execute(self, query: str, *args) -> None:
@@ -83,7 +88,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Get all passwords of service for a user."""
 
     @abstractmethod
-    async def get_rand_password(self, user_id: int) -> EncryptedRecord | None:
+    async def get_rand_password(self, user_id: int) -> Optional[EncryptedRecord]:
         """Get a random passwords record for a user."""
 
     @abstractmethod
@@ -107,7 +112,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Import passwords for a user."""
 
     @abstractmethod
-    async def export_passwords(self, user_id: int) -> list[EncryptedRecord] | None:
+    async def export_passwords(self, user_id: int) -> Optional[EncryptedRecord]:
         """Import passwords for a user."""
 
     @abstractmethod

@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from models.db_record.password_record import DecryptedRecord
+
 from utils import InlineKeyboardsUtils as KbUtils
 
 
@@ -61,7 +61,7 @@ class InlinePasswordManagerKeyboard:
     @classmethod
     def pwd_mgr_passwords(
             cls,
-            decrypted_records: list[DecryptedRecord],
+            decrypted_records: list["DecryptedRecord"],
             service: str,
             pwd_offset: int,
             services_offset: int

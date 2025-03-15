@@ -1,75 +1,106 @@
-import secrets
+import base64
+import json
+import os
+from dataclasses import dataclass
 
 from argon2.low_level import hash_secret_raw, Type
+from argon2 import (
+    DEFAULT_MEMORY_COST,
+    DEFAULT_HASH_LENGTH,
+    DEFAULT_PARALLELISM,
+    DEFAULT_RANDOM_SALT_LENGTH,
+    DEFAULT_TIME_COST,
+)
 from cryptography.exceptions import InvalidTag
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes, AEADEncryptionContext, CipherContext
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from config import pwd_mgr_cfg, bot_cfg
-from models.db_record.password_record import EncryptedRecord, DecryptedRecord
+DEFAULT_RANDOM_NONCE_LENGTH = 16
 
 
-class PasswordManagerCryptoHelper:
-    @staticmethod
-    def gen_salt(size: int = pwd_mgr_cfg.SALT_LEN) -> bytes:
-        """Generate salt (128-bit by default)"""
-        return secrets.token_bytes(size)
+def derive_key(master_password: str, salt: bytes) -> bytes:
+    """
+    Derive a 256-bit encryption key from a master password using Argon2.
 
-    @staticmethod
-    def _gen_iv(size: int = pwd_mgr_cfg.GCM_IV_SIZE) -> bytes:
-        """Generate initialization vector (96-bit by default)"""
-        return secrets.token_bytes(size)
+    :param master_password: The user-provided master password.
+    :param salt: Salt for key derivation.
+    :return: A securely derived 256-bit key.
+    """
+    raw_key = hash_secret_raw(
+        secret=master_password.encode(),
+        salt=salt,
+        time_cost=DEFAULT_TIME_COST,
+        memory_cost=DEFAULT_MEMORY_COST,
+        parallelism=DEFAULT_PARALLELISM,
+        hash_len=DEFAULT_HASH_LENGTH,
+        type=Type.ID
+    )
+    return raw_key
 
-    @staticmethod
-    def derive_key(
-            master_password: str,
-            salt: bytes,
-            time_cost: int = pwd_mgr_cfg.ARGON2.TIME_COST,
-            memory_cost: int = pwd_mgr_cfg.ARGON2.MEMORY_COST,
-            parallelism: int = pwd_mgr_cfg.ARGON2.PARALLELISM,
-            length: int = pwd_mgr_cfg.ARGON2.HASH_LEN
-    ) -> bytes:
-        """Derive 256-bit key from Master Password"""
-        return hash_secret_raw(
-            secret=master_password.encode(),
-            salt=salt,
-            time_cost=time_cost,
-            memory_cost=memory_cost,
-            parallelism=parallelism,
-            hash_len=length,
-            type=Type.ID
-        )
 
-    @staticmethod
-    def encrypt_record(service: str, login: str, password: str, key: bytes) -> EncryptedRecord:
-        record: str = f"{login}{bot_cfg.sep}{password}"
-        iv: bytes = PasswordManagerCryptoHelper._gen_iv()
-        cipher: Cipher[modes.GCM] = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
-        encryptor: AEADEncryptionContext = cipher.encryptor()
-        ciphertext: bytes = encryptor.update(record.encode()) + encryptor.finalize()
-        return EncryptedRecord(
-            service=service,
-            iv=iv,
-            tag=encryptor.tag,
-            ciphertext=ciphertext
-        )
+@dataclass(frozen=True)
+class EncryptedRecord:
+    """
+    Represents an encrypted record containing a service name and ciphertext.
+    """
+    service: str
+    ciphertext: str
 
-    @staticmethod
-    def decrypt_record(encrypted_record: EncryptedRecord, key: bytes) -> DecryptedRecord | None:
-        iv: bytes = encrypted_record.iv
-        tag: bytes = encrypted_record.tag
-        ciphertext: bytes = encrypted_record.ciphertext
+    @classmethod
+    def encrypt(cls, decrypted_record: "DecryptedRecord", master_password: str) -> "EncryptedRecord":
+        """
+        Encrypts login credentials.
 
-        cipher: Cipher[modes.GCM] = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
-        decryptor: CipherContext = cipher.decryptor()
+        :param decrypted_record: The record containing login and password to be encrypted.
+        :param master_password: The master password used for key derivation.
+        :return: An EncryptedRecord instance containing the service name and ciphertext.
+        """
+        salt = os.urandom(DEFAULT_RANDOM_SALT_LENGTH)
+        nonce = os.urandom(DEFAULT_RANDOM_NONCE_LENGTH)
+
+        derived_key = derive_key(master_password, salt)
+        aesgcm = AESGCM(derived_key)
+
+        plaintext = json.dumps({
+            "login": decrypted_record.login,
+            "password": decrypted_record.password
+        }).encode()
+
+        ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+        ciphertext_with_salt_nonce = base64.urlsafe_b64encode(nonce + ciphertext + salt).decode()
+        return cls(service=decrypted_record.service, ciphertext=ciphertext_with_salt_nonce)
+
+
+@dataclass(frozen=True)
+class DecryptedRecord:
+    """
+    Represents a decrypted record containing a service name, login, and password.
+    """
+    service: str
+    login: str
+    password: str
+
+    @classmethod
+    def decrypt(cls, encrypted_record: EncryptedRecord, master_password: str) -> "DecryptedRecord":
+        """
+        Decrypts an `EncryptedRecord` and returns a `DecryptedRecord`.
+
+        :param encrypted_record: The encrypted record to decrypt.
+        :param master_password: The user's master password used to derive the decryption key.
+        :return: A DecryptedRecord containing the service, login, and password.
+        :raises InvalidTag: If the decryption fails due to an incorrect key or data corruption.
+        """
+        data = base64.urlsafe_b64decode(encrypted_record.ciphertext)
+
+        nonce = data[:DEFAULT_RANDOM_NONCE_LENGTH]
+        ciphertext = data[DEFAULT_RANDOM_NONCE_LENGTH:-DEFAULT_RANDOM_SALT_LENGTH]
+        salt = data[-DEFAULT_RANDOM_SALT_LENGTH:]
+
+        derived_key = derive_key(master_password, salt)
+        aesgcm = AESGCM(derived_key)
         try:
-            plaintext: str = (decryptor.update(ciphertext) + decryptor.finalize()).decode()
+            plaintext = aesgcm.decrypt(nonce, ciphertext, None).decode()
         except InvalidTag:
             raise
-        else:
-            login, password = plaintext.split(bot_cfg.sep)
-            return DecryptedRecord(
-                service=encrypted_record.service,
-                login=login,
-                password=password
-            )
+
+        login, password = json.loads(plaintext).values()
+        return cls(service=encrypted_record.service, login=login, password=password)

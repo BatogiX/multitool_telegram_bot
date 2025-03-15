@@ -9,7 +9,7 @@ class KeyValueDatabaseConfig(BaseSettings):
     port: int = 6379
     username: str = ""
     password: str = ""
-    url: str = "redis://localhost:6379"
+    url: str = "key_value_db://localhost:6379"
 
     max_pool_size: int = 10
 

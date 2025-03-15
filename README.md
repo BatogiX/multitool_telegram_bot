@@ -56,5 +56,5 @@ And:
 
 To start the bot, run the following command:
 ```sh
-python main.py
+python src/main.py
 ```

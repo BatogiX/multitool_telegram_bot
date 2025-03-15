@@ -5,12 +5,12 @@ load_dotenv()
 from .bot_config import BotConfig
 from .pwd_mgr_config import PasswordManagerConfig
 from database import DatabaseManager
-from database.postgresql import PostgresqlManager
-from database.redis import RedisManager
+from database.relational_db import PostgresqlManager
+from database.key_value_db import RedisManager, MemoryStorageManager
 
 bot_cfg = BotConfig()
 pwd_mgr_cfg = PasswordManagerConfig()
-db_manager: DatabaseManager = DatabaseManager(
+db_manager = DatabaseManager(
     key_value_db=RedisManager(),
     relational_db=PostgresqlManager()
 )

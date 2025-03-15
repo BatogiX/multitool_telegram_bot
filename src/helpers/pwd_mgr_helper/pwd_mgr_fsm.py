@@ -7,9 +7,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
 from cryptography.exceptions import InvalidTag
 
-from config import db_manager, bot_cfg
+from config import bot_cfg, db_manager
 from keyboards import Keyboards
-from models.db_record.password_record import EncryptedRecord, DecryptedRecord
+from helpers.pwd_mgr_helper.pwd_mgr_crypto import PasswordManagerCryptoHelper
 from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrUtils
 from utils import BotUtils
 from utils.storage_utils import StorageUtils
@@ -53,7 +53,7 @@ class PasswordManagerFsmHelper(BotUtils):
         """derives a key, and verifies correctness."""
         salt: bytes = await db_manager.relational_db.get_salt(message.from_user.id)
         key: bytes = PwdMgrUtils.derive_key(master_password, salt)
-        rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_password(message.from_user.id)
+        rand_encrypted_record: PasswordManagerCryptoHelper.EncryptedRecord = await db_manager.relational_db.get_rand_password(message.from_user.id)
 
         if rand_encrypted_record:
             try:
@@ -66,7 +66,7 @@ class PasswordManagerFsmHelper(BotUtils):
     async def show_service_logins(message: Message, state: FSMContext, key: bytes, service: str) -> None:
         pwd_offset: int = await StorageUtils.get_pm_pwd_offset(state)
         services_offset: int = await StorageUtils.get_pm_services_offset(state)
-        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.get_passwords(
+        encrypted_records: list[PasswordManagerCryptoHelper.EncryptedRecord] = await db_manager.relational_db.get_passwords(
             user_id=message.from_user.id,
             service=service,
             offset=pwd_offset,
@@ -138,7 +138,7 @@ class PasswordManagerFsmHelper(BotUtils):
             content: str = await f.read()
             lines: list[str] = content.splitlines()
 
-        encrypted_records: list[EncryptedRecord] = []
+        encrypted_records: list[PasswordManagerCryptoHelper.EncryptedRecord] = []
         reader = csv.DictReader(lines)
         for row in reader:
             service: str = row.get("url", "").replace(bot_cfg.sep, "")
@@ -152,7 +152,7 @@ class PasswordManagerFsmHelper(BotUtils):
 
     @staticmethod
     async def process_exporting_to_file(key: bytes, user_id: int) -> BufferedInputFile:
-        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
+        encrypted_records: list[PasswordManagerCryptoHelper.EncryptedRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
 
         csv_lines = ['"url","username","password"']
         for encrypted_record in encrypted_records:

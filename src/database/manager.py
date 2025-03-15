@@ -1,4 +1,9 @@
-from .base import AbstractRelationDatabase, AbstractKeyValueDatabase
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .base import AbstractRelationDatabase, AbstractKeyValueDatabase
 
 
 class DatabaseManager:
@@ -15,17 +20,13 @@ class DatabaseManager:
         Initialize database connections.
         Connects to key–value and relational databases, and initializes the relational database.
         """
-        if self.key_value_db:
-            await self.key_value_db.connect()
-        if self.relational_db:
-            await self.relational_db.connect()
-            await self.relational_db.init_db()
+        await self.key_value_db.connect()
+
+        await self.relational_db.connect()
+        await self.relational_db.init_db()
 
     async def close(self) -> None:
         """
         Close all database connections.
         """
-        if self.key_value_db:
-            await self.key_value_db.disconnect()
-        if self.relational_db:
-            await self.relational_db.disconnect()
+        await self.relational_db.close()

@@ -3,11 +3,11 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
 
-from config import db_manager, bot_cfg
+from config import bot_cfg, db_manager
 from .callback_handler import SERVICES_TEXT, ENTER_TEXT, NO_SERVICES_TEXT, CONFIRMATION_TEXT, SERVICE_TEXT
 from keyboards import Keyboards
 from models.states import PasswordManagerStates
-from models.db_record.password_record import DecryptedRecord, EncryptedRecord
+from helpers.pwd_mgr_helper.pwd_mgr_crypto import DecryptedRecord
 from utils import StorageUtils
 from helpers import PasswordManagerHelper as PwdMgrHelper
 
@@ -104,7 +104,7 @@ async def delete_password(message: Message, state: FSMContext):
         return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_MASTER_PASS, current_state)
 
     service: str = await StorageUtils.get_service(state)
-    encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.get_passwords(
+    encrypted_records: list["EncryptedRecord"] = await db_manager.relational_db.get_passwords(
         user_id=message.from_user.id,
         service=service,
         offset=0,
@@ -113,7 +113,7 @@ async def delete_password(message: Message, state: FSMContext):
 
     decrypted_records: list[DecryptedRecord] = []
     for encrypted_record in encrypted_records:
-        decrypted_record: DecryptedRecord = PwdMgrHelper.decrypt_record(encrypted_record=encrypted_record, key=key)
+        decrypted_record: DecryptedRecord = DecryptedRecord(encrypted_record=encrypted_record, derived_key=key)
         if decrypted_record.login == login and decrypted_record.password == password:
             await db_manager.relational_db.delete_password(message.from_user.id, service, encrypted_record.ciphertext)
             continue
