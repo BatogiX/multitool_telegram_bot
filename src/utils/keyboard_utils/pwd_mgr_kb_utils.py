@@ -1,10 +1,15 @@
-from aiogram.types import InlineKeyboardButton
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional
 
+from aiogram.types import InlineKeyboardButton
 
 from .kb_utils import KeyboardsUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from config import bot_cfg
 from .. import BotUtils
+
+if TYPE_CHECKING:
+    from helpers.pwd_mgr_helper import DecryptedRecord
 
 
 class PasswordManagerKeyboardsUtils(KeyboardsUtils):
@@ -53,7 +58,7 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return create_new_service_button
 
     @classmethod
-    def gen_delete_services_button(cls, offset: int) -> InlineKeyboardButton | None:
+    def gen_delete_services_button(cls, offset: int) -> Optional[InlineKeyboardButton]:
         return cls._create_button(
             text=cls.delete_services_text,
             callback_data=PwdMgrCb.DeleteServices(services_offset=offset)
@@ -91,8 +96,8 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return cls._gen_dynamic_buttons(services, create_button)
 
     @classmethod
-    def gen_pwd_buttons(cls, decrypted_records: list["DecryptedRecord"]) -> list[list[InlineKeyboardButton]]:
-        def create_button(record: "DecryptedRecord") -> InlineKeyboardButton:
+    def gen_pwd_buttons(cls, decrypted_records: list[DecryptedRecord]) -> list[list[InlineKeyboardButton]]:
+        def create_button(record: DecryptedRecord) -> InlineKeyboardButton:
             return cls._create_button(
                 text=record.login,
                 callback_data=PwdMgrCb.EnterPassword(login=record.login, password=record.password)
@@ -101,14 +106,14 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return cls._gen_dynamic_buttons(decrypted_records, create_button)
 
     @classmethod
-    def gen_previous_page_services_button(cls, offset: int) -> InlineKeyboardButton | None:
+    def gen_previous_page_services_button(cls, offset: int) -> Optional[InlineKeyboardButton]:
         return cls._create_button(
             text=cls.previous_page_char,
             callback_data=PwdMgrCb.EnterServices(services_offset=offset - bot_cfg.dynamic_buttons_limit)
         ) if offset > 0 else None
 
     @classmethod
-    def gen_next_page_services_button(cls, services: list[str], offset: int) -> InlineKeyboardButton | None:
+    def gen_next_page_services_button(cls, services: list[str], offset: int) -> Optional[InlineKeyboardButton]:
         if len(services) > bot_cfg.dynamic_buttons_limit:
             services.pop()
             return cls._create_button(
@@ -118,14 +123,14 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return None
 
     @classmethod
-    def gen_previous_page_pwds_button(cls, offset: int, service: str) -> InlineKeyboardButton | None:
+    def gen_previous_page_pwds_button(cls, offset: int, service: str) -> Optional[InlineKeyboardButton]:
         return cls._create_button(
             text=cls.previous_page_char,
             callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=offset - bot_cfg.dynamic_buttons_limit)
         ) if offset > 0 else None
 
     @classmethod
-    def gen_next_page_pwds_button(cls, decrypted_records: list["DecryptedRecord"], offset: int, service: str) -> InlineKeyboardButton | None:
+    def gen_next_page_pwds_button(cls, decrypted_records: list[DecryptedRecord], offset: int, service: str) -> Optional[InlineKeyboardButton]:
         if len(decrypted_records) > bot_cfg.dynamic_buttons_limit:
             decrypted_records.pop()
             return cls._create_button(
@@ -135,21 +140,21 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return None
 
     @classmethod
-    def gen_enter_services_button(cls):
+    def gen_enter_services_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.enter_services_text,
             callback_data=PwdMgrCb.EnterServices(services_offset=0)
         )
 
     @classmethod
-    def gen_import_from_file_button(cls):
+    def gen_import_from_file_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.import_from_file_text,
             callback_data=PwdMgrCb.ImportFromFile()
         )
 
     @classmethod
-    def gen_export_to_file_button(cls):
+    def gen_export_to_file_button(cls) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.export_to_file_text,
             callback_data=PwdMgrCb.ExportToFile()

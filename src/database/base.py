@@ -47,35 +47,15 @@ class AbstractRelationDatabase(AbstractDatabase):
     """Abstract class for relational databases."""
 
     @abstractmethod
-    async def _execute(self, query: str, *args) -> None:
-        """Execute an SQL query without returning a result (INSERT, UPDATE, DELETE)."""
-
-    @abstractmethod
-    async def _fetch_row(self, query: str, *args) -> any:
-        """Get one record from the database."""
-
-    @abstractmethod
-    async def _fetch_value(self, query: str, *args) -> any:
-        """Get a single value from the database."""
-
-    @abstractmethod
-    async def _fetch_all(self, query: str, *args) -> any:
-        """Get a list of records from the database."""
-
-    @abstractmethod
-    async def _init_db(self) -> None:
-        """Initialize database."""
-
-    @abstractmethod
     async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
         """Create a new user in the database."""
 
     @abstractmethod
-    async def get_services(self, user_id: int, offset: int, limit: int) -> list[str]:
+    async def get_services(self, user_id: int, offset: int, limit: int) -> Optional[list[str]]:
         """Get all services for a user."""
 
     @abstractmethod
-    async def create_password(self, user_id: int, service: str, ciphertext: bytes) -> None:
+    async def create_password(self, user_id: int, service: str, ciphertext: str) -> None:
         """Create a new service for a user."""
 
     @abstractmethod
@@ -99,7 +79,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Delete a service for a user."""
 
     @abstractmethod
-    async def delete_password(self, user_id: int, service: str, ciphertext: bytes) -> None:
+    async def delete_password(self, user_id: int, service: str, ciphertext: str) -> None:
         """Delete a password for a user."""
 
     @abstractmethod
@@ -111,5 +91,25 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Import passwords for a user."""
 
     @abstractmethod
-    async def inline_search_service(self, user_id: int, service: str, limit: int) -> list[str]:
+    async def inline_search_service(self, user_id: int, service: str, limit: int) -> Optional[list[str]]:
         """Search for passwords of service for a user."""
+
+    @abstractmethod
+    async def _execute(self, query: str, *args) -> None:
+        """Execute an SQL query without returning a result (INSERT, UPDATE, DELETE)."""
+
+    @abstractmethod
+    async def _fetch_row(self, query: str, *args) -> any:
+        """Get one record from the database."""
+
+    @abstractmethod
+    async def _fetch_value(self, query: str, *args) -> any:
+        """Get a single value from the database."""
+
+    @abstractmethod
+    async def _fetch_all(self, query: str, *args) -> any:
+        """Get a list of records from the database."""
+
+    @abstractmethod
+    async def _init_db(self) -> None:
+        """Initialize database."""

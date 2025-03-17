@@ -1,5 +1,4 @@
 import csv
-import re
 from io import BytesIO
 
 import aiofiles
@@ -12,7 +11,6 @@ from utils import BotUtils
 from utils.storage_utils import StorageUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from . import EncryptedRecord, DecryptedRecord
-from .weak_pwd_exception import WeakPasswordException
 
 MAX_CHAR_LIMIT: int = 64
 MSG_ERROR_INVALID_FORMAT: str = "Wrong format"
@@ -21,33 +19,7 @@ MSG_ERROR_LONG_INPUT: str = "Login or password is too long"
 
 class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
-    def validate_master_password(master_password: str):
-        """Validate Master Password"""
-        if len(master_password) < 12:
-            raise WeakPasswordException("The Master Password must contain at least 12 characters.")
-
-        if not re.search(r'[A-Z]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one capital letter.")
-
-        if not re.search(r'[a-z]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one lowercase letter.")
-
-        if not re.search(r'[0-9]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one digit.")
-
-        if not re.search(r'[\W_]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one special character.")
-
-    @classmethod
-    def is_master_password_weak(cls, master_password: str) -> str:
-        try:
-            cls.validate_master_password(master_password)
-        except WeakPasswordException as e:
-            return str(e)
-        return ""
-
-    @staticmethod
-    async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> None:
+    async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> tuple[list[DecryptedRecord], int, int, str]:
         pwd_offset = await StorageUtils.get_pm_pwd_offset(state)
         services_offset = await StorageUtils.get_pm_services_offset(state)
         encrypted_records = await db_manager.relational_db.get_passwords(
@@ -59,15 +31,13 @@ class PasswordManagerFsmHelper(BotUtils):
         decrypted_records: list[DecryptedRecord] = []
         for encrypted_record in encrypted_records:
             decrypted_records.append(DecryptedRecord.decrypt(encrypted_record, master_password))
+
         text = (
             f"*Service:* {service}\n"
             "Choose your login to see password"
         )
-        await message.answer(
-            text=text,
-            reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwd_offset, services_offset),
-            parse_mode="Markdown"
-        )
+
+        return decrypted_records, pwd_offset, services_offset, text
 
     @staticmethod
     def has_valid_input_length(login: str, password: str):
@@ -107,7 +77,7 @@ class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:
         current_state = await state.get_state()
-        await state.set_state(None)
+        await state.set_state()
         await BotUtils.delete_fsm_message(state, message)
         await message.delete()
         return current_state

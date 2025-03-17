@@ -5,7 +5,7 @@ from asyncpg import Pool, Connection, Record, create_pool
 
 from database.base import AbstractRelationDatabase
 from helpers.pwd_mgr_helper.pwd_mgr_crypto import EncryptedRecord
-from config import relational_database_cfg
+from config import relational_database_cfg, bot_cfg
 
 
 class PostgresqlManager(AbstractRelationDatabase):
@@ -49,7 +49,7 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, user_name, full_name
         )
 
-    async def get_services(self, user_id: int, offset: int, limit: int) -> Optional[list[str]]:
+    async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         records: list[Record] = await self._fetch_all(
             "SELECT DISTINCT service FROM public.passwords WHERE user_id = $1 ORDER BY service OFFSET $2 LIMIT $3",
             user_id, offset, limit + 1
