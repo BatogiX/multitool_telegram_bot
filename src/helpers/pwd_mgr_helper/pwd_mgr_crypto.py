@@ -1,34 +1,27 @@
 import base64
 import json
 import os
-from dataclasses import dataclass
 
-from argon2.low_level import hash_secret_raw, Type
-from argon2 import (
-    DEFAULT_MEMORY_COST,
-    DEFAULT_HASH_LENGTH,
-    DEFAULT_PARALLELISM,
-    DEFAULT_RANDOM_SALT_LENGTH,
-    DEFAULT_TIME_COST,
-)
+from argon2.low_level import hash_secret_raw
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from pydantic import BaseModel
 
-from config import db_manager
+from config import db_manager, crypto_cfg
 
-DEFAULT_RANDOM_NONCE_LENGTH = 16
+MSG_ERROR_MASTER_PASS = "Wrong Master Password"
+
 
 class PasswordManagerCryptoHelper:
     @classmethod
-    async def is_master_password_valid(cls, master_password: str, user_id: int) -> bool:
+    async def is_master_password_valid(cls, master_password: str, user_id: int) -> None:
         """Verifies correctness of master password."""
-        rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_password(user_id)
+        rand_encrypted_record = await db_manager.relational_db.get_rand_password(user_id)
         if rand_encrypted_record:
             try:
                 DecryptedRecord.decrypt(rand_encrypted_record, master_password)
             except InvalidTag:
-                return False
-        return True
+                raise InvalidTag(MSG_ERROR_MASTER_PASS)
 
     @staticmethod
     def derive_key(master_password: str, salt: bytes) -> bytes:
@@ -42,18 +35,16 @@ class PasswordManagerCryptoHelper:
         raw_key = hash_secret_raw(
             secret=master_password.encode(),
             salt=salt,
-            time_cost=DEFAULT_TIME_COST,
-            memory_cost=DEFAULT_MEMORY_COST,
-            parallelism=DEFAULT_PARALLELISM,
-            hash_len=DEFAULT_HASH_LENGTH,
-            type=Type.ID
+            time_cost=crypto_cfg.argon2_time_cost,
+            memory_cost=crypto_cfg.argon2_memory_cost,
+            parallelism=crypto_cfg.argon2_parallelism,
+            hash_len=crypto_cfg.argon2_hash_length,
+            type=crypto_cfg.argon2_type,
         )
         return raw_key
 
 
-
-@dataclass(frozen=True)
-class EncryptedRecord:
+class EncryptedRecord(BaseModel):
     """
     Represents an encrypted record containing a service name and ciphertext.
     """
@@ -69,10 +60,10 @@ class EncryptedRecord:
         :param master_password: The master password used for key derivation.
         :return: An EncryptedRecord instance containing the service name and ciphertext.
         """
-        salt = os.urandom(DEFAULT_RANDOM_SALT_LENGTH)
-        nonce = os.urandom(DEFAULT_RANDOM_NONCE_LENGTH)
+        salt = os.urandom(crypto_cfg.argon2_random_salt_length)
+        nonce = os.urandom(crypto_cfg.random_nonce_length)
 
-        derived_key = derive_key(master_password, salt)
+        derived_key = PasswordManagerCryptoHelper.derive_key(master_password, salt)
         aesgcm = AESGCM(derived_key)
 
         plaintext = json.dumps({
@@ -85,8 +76,7 @@ class EncryptedRecord:
         return cls(service=decrypted_record.service, ciphertext=ciphertext_with_salt_nonce)
 
 
-@dataclass(frozen=True)
-class DecryptedRecord:
+class DecryptedRecord(BaseModel):
     """
     Represents a decrypted record containing a service name, login, and password.
     """
@@ -95,7 +85,7 @@ class DecryptedRecord:
     password: str
 
     @classmethod
-    def decrypt(cls, encrypted_record: EncryptedRecord, master_password: str) -> "DecryptedRecord":
+    def decrypt(cls, encrypted_record: "EncryptedRecord", master_password: str) -> "DecryptedRecord":
         """
         Decrypts an `EncryptedRecord` and returns a `DecryptedRecord`.
 
@@ -106,11 +96,11 @@ class DecryptedRecord:
         """
         data = base64.urlsafe_b64decode(encrypted_record.ciphertext)
 
-        nonce = data[:DEFAULT_RANDOM_NONCE_LENGTH]
-        ciphertext = data[DEFAULT_RANDOM_NONCE_LENGTH:-DEFAULT_RANDOM_SALT_LENGTH]
-        salt = data[-DEFAULT_RANDOM_SALT_LENGTH:]
+        nonce = data[:crypto_cfg.random_nonce_length]
+        ciphertext = data[crypto_cfg.random_nonce_length:-crypto_cfg.argon2_random_salt_length]
+        salt = data[-crypto_cfg.argon2_random_salt_length:]
 
-        derived_key = derive_key(master_password, salt)
+        derived_key = PasswordManagerCryptoHelper.derive_key(master_password, salt)
         aesgcm = AESGCM(derived_key)
         try:
             plaintext = aesgcm.decrypt(nonce, ciphertext, None).decode()

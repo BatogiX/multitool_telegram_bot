@@ -2,10 +2,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING, Any
 
-from aiogram.fsm.storage.base import BaseStorage
-
 if TYPE_CHECKING:
     from helpers.pwd_mgr_helper.pwd_mgr_crypto import EncryptedRecord
+    from aiogram.fsm.storage.base import BaseStorage
 
 
 class AbstractDatabase(ABC):
@@ -64,7 +63,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Get a list of records from the database."""
 
     @abstractmethod
-    async def init_db(self) -> None:
+    async def _init_db(self) -> None:
         """Initialize database."""
 
     @abstractmethod

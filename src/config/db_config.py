@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -5,17 +7,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class KeyValueDatabaseConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="KEY_VALUE_DB_", frozen=True)
 
+    backend: Literal["redis", "memory"] = Field(default="redis", validate_default=True)
+
     host: str = "localhost"
     port: int = 6379
     username: str = ""
     password: str = ""
-    url: str = "key_value_db://localhost:6379"
+    url: str = "redis://localhost:6379"
 
     max_pool_size: int = Field(default=10, ge=1)
+    state_ttl: int = Field(default=0, ge=0)
+    data_ttl: int = Field(default=0, ge=0)
 
 
 class RelationalDatabaseConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="RELATIONAL_DB_", frozen=True)
+
+    backend: Literal["postgres"] = Field(default="postgres", validate_default=True)
 
     host: str = "localhost"
     port: int = 5432

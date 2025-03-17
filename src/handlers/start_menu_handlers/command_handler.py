@@ -10,20 +10,20 @@ command_router = Router(name=__name__)
 
 
 @command_router.message(CommandStart())
-async def cmd_start(message: Message):
+async def cmd_start(message: Message) -> Message:
     await db_manager.relational_db.create_user_if_not_exists(message.from_user.id, message.from_user.username, message.from_user.full_name)
-    await message.answer(
+    return await message.answer(
         text="Hello! I'm your friendly bot. How can I assist you today?",
         reply_markup=Keyboards.inline.start_menu()
     )
 
 
 @command_router.message(Command("help"))
-async def cmd_help(message: Message):
+async def cmd_help(message: Message) -> Message:
     help_text = text(
         "Here are some commands you can use:",
         "/start - Start the bot",
         "/help - Get help",
         sep="\n"
     )
-    await message.answer(help_text)
+    return await message.answer(help_text)

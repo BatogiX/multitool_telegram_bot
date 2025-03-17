@@ -15,11 +15,13 @@ from . import EncryptedRecord, DecryptedRecord
 from .weak_pwd_exception import WeakPasswordException
 
 MAX_CHAR_LIMIT: int = 64
+MSG_ERROR_INVALID_FORMAT: str = "Wrong format"
+MSG_ERROR_LONG_INPUT: str = "Login or password is too long"
 
 
 class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
-    def _validate_master_password(master_password: str) -> bool:
+    def validate_master_password(master_password: str):
         """Validate Master Password"""
         if len(master_password) < 12:
             raise WeakPasswordException("The Master Password must contain at least 12 characters.")
@@ -36,12 +38,10 @@ class PasswordManagerFsmHelper(BotUtils):
         if not re.search(r'[\W_]', master_password):
             raise WeakPasswordException("The Master Password must contain at least one special character.")
 
-        return True
-
     @classmethod
     def is_master_password_weak(cls, master_password: str) -> str:
         try:
-            cls._validate_master_password(master_password)
+            cls.validate_master_password(master_password)
         except WeakPasswordException as e:
             return str(e)
         return ""
@@ -70,9 +70,10 @@ class PasswordManagerFsmHelper(BotUtils):
         )
 
     @staticmethod
-    def has_valid_input_length(login: str, password: str) -> bool:
+    def has_valid_input_length(login: str, password: str):
         """Checks if the combined input length exceeds the max character limit."""
-        return len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") <= MAX_CHAR_LIMIT
+        if len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") > MAX_CHAR_LIMIT:
+            raise Exception(MSG_ERROR_LONG_INPUT)
 
     @staticmethod
     async def create_password_record(decrypted_record: DecryptedRecord, user_id: int, master_password: str) -> None:
@@ -80,9 +81,12 @@ class PasswordManagerFsmHelper(BotUtils):
         await db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext)
 
     @staticmethod
-    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> tuple:
+    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> tuple[str, ...]:
         parts = tuple(user_input.split(sep=sep))
-        return parts if len(parts) == maxsplit else tuple()
+        if len(parts) == maxsplit:
+            return parts
+        else:
+            raise Exception(MSG_ERROR_INVALID_FORMAT)
 
     @staticmethod
     async def resend_user_input_request(
@@ -90,7 +94,7 @@ class PasswordManagerFsmHelper(BotUtils):
             message: Message,
             error_message: str,
             current_state: str,
-    ) -> None:
+    ) -> Message:
         await state.set_state(current_state)
         input_format = await StorageUtils.get_pm_input_format_text(state)
         message_to_delete = await message.answer(
@@ -98,6 +102,7 @@ class PasswordManagerFsmHelper(BotUtils):
             reply_markup=Keyboards.inline.return_to_services(offset=0)
         )
         await StorageUtils.set_message_id_to_delete(state, message_to_delete.message_id)
+        return message_to_delete
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:

@@ -2,12 +2,10 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from aiogram.fsm.storage.redis import RedisStorage
 
 from config import bot_cfg, db_manager
 from handlers import handlers_router
+from middleware import AutoDeleteMessagesMiddleware
 
 
 async def on_startup() -> tuple[Dispatcher, Bot]:
@@ -15,8 +13,9 @@ async def on_startup() -> tuple[Dispatcher, Bot]:
     await db_manager.initialize()
 
     dispatcher = Dispatcher(storage=db_manager.key_value_db.storage)
+    dispatcher.update.middleware.register(AutoDeleteMessagesMiddleware())
     dispatcher.include_router(handlers_router)
-    bot = Bot(token=bot_cfg.token, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
+    bot = Bot(token=bot_cfg.token)
     return dispatcher, bot
 
 

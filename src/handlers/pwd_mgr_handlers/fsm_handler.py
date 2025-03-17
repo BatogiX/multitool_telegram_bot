@@ -27,36 +27,28 @@ fsm_router = Router(name=__name__)
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.CreateService), F.text)
-async def create_service(message: Message, state: FSMContext):
+async def create_service(message: Message, state: FSMContext) -> Message:
     current_state = await PwdMgrHelper.handle_message_deletion(state, message)
 
-    user_input: tuple[str, ...] = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=4)
-    if not user_input:
-        return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_INVALID_FORMAT, current_state)
+    try:
+        master_password, service, login, password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=4)
+        PwdMgrHelper.has_valid_input_length(login, password)
+        PwdMgrHelper.validate_master_password(master_password)
+        await PwdMgrHelper.is_master_password_valid(master_password, message.from_user.id)
+    except Exception as e:
+        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-    master_password, service, login, password = user_input
-    if not PwdMgrHelper.has_valid_input_length(login, password):
-        return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_LONG_INPUT, current_state)
-
-    error = PwdMgrHelper.is_master_password_weak(master_password)
-    if error:
-        return await PwdMgrHelper.resend_user_input_request(state, message, error, current_state)
-
-    key: bytes | str = await PwdMgrHelper.derive_key_from_master_password(master_password, message)
-    if not key:
-        return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_MASTER_PASS, current_state)
-
-    await PwdMgrHelper.create_password_record(service, message, key)
     await StorageUtils.set_service(state, service)
-    services_offset = await StorageUtils.get_pm_services_offset(state)
-    await message.answer(
+    decrypted_record = DecryptedRecord(service=service, login=login, password=password)
+    await PwdMgrHelper.create_password_record(decrypted_record, message.from_user.id, master_password)
+    return await message.answer(
         text=SERVICE_TEXT + service + CHOOSE_LOGIN_TEXT,
         parse_mode="Markdown",
         reply_markup=Keyboards.inline.pwd_mgr_passwords(
-            decrypted_records=[DecryptedRecord(service=service, login=login, password=password)],
+            decrypted_records=[decrypted_record],
             service=service,
             pwd_offset=0,
-            services_offset=services_offset
+            services_offset=await StorageUtils.get_pm_services_offset(state)
         )
     )
 

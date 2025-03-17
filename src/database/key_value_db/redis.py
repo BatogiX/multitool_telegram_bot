@@ -3,26 +3,19 @@ from typing import Optional, Any
 
 from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import Redis, ConnectionPool
-from redis.typing import ExpiryT
 
-from config.db_config import KeyValueDatabaseConfig
 from database.base import AbstractKeyValueDatabase
+from config import key_value_db_cfg
 
 
 class RedisManager(AbstractKeyValueDatabase):
     """
     Implementation of a key–value store for Redis.
     """
-
-    def __init__(
-        self,
-        state_ttl: Optional[ExpiryT] = None,
-        data_ttl: Optional[ExpiryT] = None,
-    ) -> None:
-        self.c = KeyValueDatabaseConfig()
-
+    def __init__(self) -> None:
+        self.c = key_value_db_cfg
         self.redis = Redis(connection_pool=self._create_connection_pool(), decode_responses=True)
-        self.storage = RedisStorage(redis=self.redis, state_ttl=state_ttl, data_ttl=data_ttl)
+        self.storage = RedisStorage(redis=self.redis, state_ttl=self.c.state_ttl, data_ttl=self.c.data_ttl)
 
     async def connect(self) -> None:
         try:
