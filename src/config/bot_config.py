@@ -19,7 +19,7 @@ class BotConfig(BaseSettings):
 
     @staticmethod
     def _parse_admins(admin_ids: str) -> set[int]:
-        return {int(id) for id in admin_ids.split(",") if id.isdigit()}
+        return {int(admin_ds) for admin_ds in admin_ids.split(",") if admin_ds.isdigit()}
 
     def __init__(self, **kwargs):
         admin_ids = os.getenv(f"{self.model_config['env_prefix']}ADMIN_IDS", "")

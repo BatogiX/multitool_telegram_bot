@@ -9,7 +9,8 @@ from config import bot_cfg
 from .. import BotUtils
 
 if TYPE_CHECKING:
-    from helpers.pwd_mgr_helper import DecryptedRecord
+    from helpers import PasswordManagerHelper
+    DecryptedRecord = PasswordManagerHelper.DecryptedRecord
 
 
 class PasswordManagerKeyboardsUtils(KeyboardsUtils):

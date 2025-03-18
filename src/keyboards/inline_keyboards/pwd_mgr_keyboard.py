@@ -1,12 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup
 
 from utils import InlineKeyboardsUtils as KbUtils
 
 if TYPE_CHECKING:
-    from helpers.pwd_mgr_helper import DecryptedRecord
+    from helpers import PasswordManagerHelper
+    DecryptedRecord = PasswordManagerHelper.DecryptedRecord
 
 
 class InlinePasswordManagerKeyboard:

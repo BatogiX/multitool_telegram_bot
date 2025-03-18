@@ -4,8 +4,10 @@ from typing import Optional
 from asyncpg import Pool, Connection, Record, create_pool
 
 from database.base import AbstractRelationDatabase
-from helpers.pwd_mgr_helper.pwd_mgr_crypto import EncryptedRecord
+from helpers import PasswordManagerHelper
 from config import relational_database_cfg, bot_cfg
+
+EncryptedRecord = PasswordManagerHelper.EncryptedRecord
 
 
 class PostgresqlManager(AbstractRelationDatabase):

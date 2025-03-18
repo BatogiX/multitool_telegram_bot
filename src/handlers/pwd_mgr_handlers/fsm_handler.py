@@ -7,21 +7,22 @@ from config import db_manager
 from .callback_handler import SERVICES_TEXT, ENTER_TEXT, NO_SERVICES_TEXT, CONFIRMATION_TEXT, SERVICE_TEXT
 from keyboards import Keyboards
 from models.states import PasswordManagerStates
-from helpers.pwd_mgr_helper.pwd_mgr_crypto import DecryptedRecord
 from utils import StorageUtils
 from helpers import PasswordManagerHelper as PwdMgrHelper
 
-MAX_CHAR_LIMIT: int = 64
-MSG_ERROR_INVALID_FORMAT: str = "Wrong format"
-MSG_ERROR_LONG_INPUT: str = "Login or password is too long"
-MSG_ERROR_MASTER_PASS: str = "Wrong Master Password"
-MSG_ERROR_NOT_CONFIRMED: str = "You didn't confirm the action"
-IMPORT_FROM_FILE_TEXT: str = "Passwords were successfully imported from file\n\n"
-EXPORT_TO_FILE_TEXT: str = "Passwords were successfully exported to file\n\n"
-PASSWORD_DELETED_TEXT: str = "Password was deleted successfully\n\n"
-CHOOSE_LOGIN_TEXT: str = "\nChoose your login to see password"
-ALL_SERVICES_DELETED_TEXT: str = "All services deleted successfully"
-SERVICE_DELETED_TEXT: str = "Service was deleted successfully\n\n"
+DecryptedRecord = PwdMgrHelper.DecryptedRecord
+
+MAX_CHAR_LIMIT = 64
+MSG_ERROR_INVALID_FORMAT = "Wrong format"
+MSG_ERROR_LONG_INPUT = "Login or password is too long"
+MSG_ERROR_MASTER_PASS = "Wrong Master Password"
+MSG_ERROR_NOT_CONFIRMED = "You didn't confirm the action"
+IMPORT_FROM_FILE_TEXT = "Passwords were successfully imported from file\n\n"
+EXPORT_TO_FILE_TEXT = "Passwords were successfully exported to file\n\n"
+PASSWORD_DELETED_TEXT = "Password was deleted successfully\n\n"
+CHOOSE_LOGIN_TEXT = "\nChoose your login to see password"
+ALL_SERVICES_DELETED_TEXT = "All services deleted successfully"
+SERVICE_DELETED_TEXT = "Service was deleted successfully\n\n"
 
 fsm_router = Router(name=__name__)
 
@@ -125,7 +126,6 @@ async def service_enter(message: Message, state: FSMContext) -> Message:
     current_state = await PwdMgrHelper.handle_message_deletion(state, message)
     try:
         master_password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=1)
-        master_password = master_password[0]
         await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
@@ -170,7 +170,6 @@ async def delete_services(message: Message, state: FSMContext) -> Message:
 
     try:
         master_password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=1)
-        master_password = master_password[0]
         await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
@@ -212,7 +211,6 @@ async def import_from_file(message: Message, state: FSMContext) -> Message:
 
     try:
         master_password = await PwdMgrHelper.split_user_input(user_input=message.caption, maxsplit=1)
-        master_password = master_password[0]
         await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
@@ -237,7 +235,6 @@ async def export_to_file(message: Message, state: FSMContext) -> Message:
     
     try:
         master_password = await PwdMgrHelper.split_user_input(user_input=message.caption, maxsplit=1)
-        master_password = master_password[0]
         await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)

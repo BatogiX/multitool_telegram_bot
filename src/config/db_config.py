@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,8 +16,8 @@ class KeyValueDatabaseConfig(BaseSettings):
     url: str = "redis://localhost:6379"
 
     max_pool_size: int = Field(default=10, ge=1)
-    state_ttl: int = Field(default=0, ge=0)
-    data_ttl: int = Field(default=0, ge=0)
+    state_ttl: Optional[int] = Field(default=None, ge=1)
+    data_ttl: Optional[int] = Field(default=None, ge=1)
 
 
 class RelationalDatabaseConfig(BaseSettings):

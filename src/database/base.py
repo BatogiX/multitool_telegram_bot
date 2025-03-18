@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from helpers.pwd_mgr_helper.pwd_mgr_crypto import EncryptedRecord
+    from helpers import PasswordManagerHelper
+    EncryptedRecord = PasswordManagerHelper.EncryptedRecord
     from aiogram.fsm.storage.base import BaseStorage
 
 

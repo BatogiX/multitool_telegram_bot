@@ -1,16 +1,21 @@
 import csv
 from io import BytesIO
+from typing import Union
 
 import aiofiles
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
+from pydantic import ValidationError
 
 from config import bot_cfg, db_manager
 from keyboards import Keyboards
 from utils import BotUtils
 from utils.storage_utils import StorageUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
-from . import EncryptedRecord, DecryptedRecord
+from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrCryptoHelper
+
+DecryptedRecord = PwdMgrCryptoHelper.DecryptedRecord
+EncryptedRecord = PwdMgrCryptoHelper.EncryptedRecord
 
 MAX_CHAR_LIMIT: int = 64
 MSG_ERROR_INVALID_FORMAT: str = "Wrong format"
@@ -51,7 +56,10 @@ class PasswordManagerFsmHelper(BotUtils):
         await db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext)
 
     @staticmethod
-    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> tuple[str, ...]:
+    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> Union[str, tuple[str, ...]]:
+        if maxsplit == 1:
+            return user_input
+
         parts = tuple(user_input.split(sep=sep))
         if len(parts) == maxsplit:
             return parts
@@ -84,32 +92,42 @@ class PasswordManagerFsmHelper(BotUtils):
 
     @classmethod
     async def process_importing_from_file(cls, message: Message, master_password: str):
-        temp_file_path: str = await cls.download_file(message)
+        try:
+            temp_file_path = await cls.download_file(message)
+        except Exception:
+            raise
 
-        async with aiofiles.open(temp_file_path, "r") as f:
-            content: str = await f.read()
-            lines: list[str] = content.splitlines()
+        try:
+            async with aiofiles.open(temp_file_path, "r", encoding="utf-8") as f:
+                content = await f.read()
+                lines = content.splitlines()
 
-        encrypted_records: list[EncryptedRecord] = []
-        reader = csv.DictReader(lines)
-        for row in reader:
-            service: str = row.get("url", "").replace(bot_cfg.sep, "")
-            login: str = row.get("username", "").replace(bot_cfg.sep, "")
-            password: str = row.get("password", "").replace(bot_cfg.sep, "")
-            decrypted_record = DecryptedRecord(service, login, password)
-            if service and login and password:
-                encrypted_records.append(EncryptedRecord.encrypt(decrypted_record, master_password))
+            encrypted_records = []
+            reader = csv.DictReader(lines)
+            for row in reader:
+                service = row.get("url", None).replace(bot_cfg.sep, "")
+                login = row.get("username", None).replace(bot_cfg.sep, "")
+                password = row.get("password", None).replace(bot_cfg.sep, "")
+                try:
+                    decrypted_record = DecryptedRecord(service=service, login=login, password=password)
+                except ValidationError:
+                    continue
+                if decrypted_record:
+                    encrypted_records.append(EncryptedRecord.encrypt(decrypted_record, master_password))
 
-        await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
-        await cls._delete_file(temp_file_path)
+            await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
+        except Exception:
+            raise
+        finally:
+            await cls._delete_file(temp_file_path)
 
     @staticmethod
     async def process_exporting_to_file(master_password: str, user_id: int) -> BufferedInputFile:
-        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
+        encrypted_records = await db_manager.relational_db.export_passwords(user_id=user_id)
 
         csv_lines = ['"url","username","password"']
         for encrypted_record in encrypted_records:
-            decrypted_record: DecryptedRecord = DecryptedRecord.decrypt(encrypted_record, master_password)
+            decrypted_record = DecryptedRecord.decrypt(encrypted_record, master_password)
             csv_lines.append(f'"{decrypted_record.service}","{decrypted_record.login}","{decrypted_record.password}"')
 
         csv_content = "\n".join(csv_lines).encode('utf-8')
