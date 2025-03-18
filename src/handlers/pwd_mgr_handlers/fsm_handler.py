@@ -3,7 +3,7 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from config import db_manager
+from database import db_manager
 from .callback_handler import SERVICES_TEXT, ENTER_TEXT, NO_SERVICES_TEXT, CONFIRMATION_TEXT, SERVICE_TEXT
 from keyboards import Keyboards
 from models.states import PasswordManagerStates

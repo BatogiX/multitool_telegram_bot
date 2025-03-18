@@ -5,7 +5,7 @@ from asyncpg import Pool, Connection, Record, create_pool
 
 from database.base import AbstractRelationDatabase
 from helpers import PasswordManagerHelper
-from config import relational_database_cfg, bot_cfg
+from config import relational_db_cfg, bot_cfg
 
 EncryptedRecord = PasswordManagerHelper.EncryptedRecord
 
@@ -16,7 +16,7 @@ class PostgresqlManager(AbstractRelationDatabase):
     """
     def __init__(self) -> None:
         self.pool: Optional[Pool] = None
-        self.c = relational_database_cfg
+        self.c = relational_db_cfg
 
     async def connect(self) -> None:
         """

@@ -41,3 +41,7 @@ class RelationalDatabaseConfig(BaseSettings):
     min_pool_size: int = Field(default=1, ge=1)
     max_pool_size: int = Field(default=10, ge=1)
     max_queries: int = Field(default=1000, ge=1)
+
+
+relational_db_cfg = RelationalDatabaseConfig()
+key_value_db_cfg = KeyValueDatabaseConfig()

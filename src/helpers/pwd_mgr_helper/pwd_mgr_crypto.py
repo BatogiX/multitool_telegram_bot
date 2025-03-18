@@ -10,7 +10,8 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel
 
-from config import db_manager, crypto_cfg
+from database import db_manager
+from config import crypto_cfg
 
 MSG_ERROR_MASTER_PASS = "Wrong Master Password"
 

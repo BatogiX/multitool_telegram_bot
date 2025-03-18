@@ -25,3 +25,6 @@ class BotConfig(BaseSettings):
         admin_ids = os.getenv(f"{self.model_config['env_prefix']}ADMIN_IDS", "")
         kwargs["admins"] = self._parse_admins(admin_ids)
         super().__init__(**kwargs)
+
+
+bot_cfg = BotConfig()

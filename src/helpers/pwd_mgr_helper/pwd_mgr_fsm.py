@@ -7,7 +7,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
 from pydantic import ValidationError
 
-from config import bot_cfg, db_manager
+from database import db_manager
+from config import bot_cfg
 from keyboards import Keyboards
 from utils import BotUtils
 from utils.storage_utils import StorageUtils

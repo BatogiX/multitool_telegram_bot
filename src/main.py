@@ -3,7 +3,8 @@ import logging
 
 from aiogram import Bot, Dispatcher
 
-from config import bot_cfg, db_manager
+from database import db_manager
+from config import bot_cfg
 from handlers import handlers_router
 from middleware import AutoDeleteMessagesMiddleware
 

@@ -3,7 +3,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 from aiogram.utils.markdown import text
 
-from config import db_manager
+from database import db_manager
 from keyboards import Keyboards
 
 command_router = Router(name=__name__)

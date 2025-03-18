@@ -21,3 +21,6 @@ class CryptographyConfig(BaseSettings):
     argon2_type: Type = Type.ID                                    # Argon2id
 
     random_nonce_length: int = 16                                  # 16 (128-bit)
+
+
+crypto_cfg = CryptographyConfig()

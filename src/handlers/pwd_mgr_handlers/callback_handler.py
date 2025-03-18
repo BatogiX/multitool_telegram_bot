@@ -2,7 +2,8 @@ from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from config import bot_cfg, db_manager
+from database import db_manager
+from config import bot_cfg
 from keyboards import Keyboards
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from models.states import PasswordManagerStates

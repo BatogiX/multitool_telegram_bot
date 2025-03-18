@@ -1,5 +1,6 @@
 from typing import Type, Union, cast
 
+from config import key_value_db_cfg, relational_db_cfg
 from .base import AbstractRelationDatabase, AbstractKeyValueDatabase
 
 DatabaseType = Union[AbstractKeyValueDatabase, AbstractRelationDatabase]
@@ -14,7 +15,7 @@ class DatabaseManager:
         self._key_value_db_backend = key_value_db_backend
         self._relational_db_backend = relational_db_backend
 
-        self.key_value_db: AbstractKeyValueDatabase = cast(AbstractKeyValueDatabase, None)  # Will be initialized in `initialize()`
+        self.key_value_db: AbstractKeyValueDatabase = cast(AbstractKeyValueDatabase, None)   # Will be initialized in `initialize()`
         self.relational_db: AbstractRelationDatabase = cast(AbstractRelationDatabase, None)  # Will be initialized in `initialize()`
 
     async def initialize(self) -> None:
@@ -51,3 +52,9 @@ class DatabaseManager:
             "postgres": PostgresqlManager,
         }
         return BACKEND_MAPPING[db_name]
+
+
+db_manager = DatabaseManager(
+    key_value_db_backend=key_value_db_cfg.backend,
+    relational_db_backend=relational_db_cfg.backend
+)
