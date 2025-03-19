@@ -5,6 +5,7 @@ import json
 import os
 import re
 
+import asyncio
 from argon2.low_level import hash_secret_raw
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -74,11 +75,13 @@ class PasswordManagerCryptoHelper:
             raise
 
         rand_encrypted_record = await db_manager.relational_db.get_rand_password(user_id)
-        if rand_encrypted_record:
-            try:
-                cls.DecryptedRecord.decrypt(rand_encrypted_record, master_password)
-            except InvalidTag:
-                raise InvalidTag(MSG_ERROR_MASTER_PASS)
+        if not rand_encrypted_record:
+            return
+
+        try:
+            await cls.DecryptedRecord.decrypt(rand_encrypted_record, master_password)
+        except InvalidTag:
+            raise InvalidTag(MSG_ERROR_MASTER_PASS)
 
     class EncryptedRecord(BaseModel):
         """
@@ -88,7 +91,15 @@ class PasswordManagerCryptoHelper:
         ciphertext: str
 
         @classmethod
-        def encrypt(
+        async def encrypt(
+            cls,
+            decrypted_record: PasswordManagerCryptoHelper.DecryptedRecord,
+            master_password: str
+        ) -> PasswordManagerCryptoHelper.EncryptedRecord:
+            return await asyncio.to_thread(cls._encrypt_sync, decrypted_record, master_password)
+
+        @classmethod
+        def _encrypt_sync(
             cls,
             decrypted_record: PasswordManagerCryptoHelper.DecryptedRecord,
             master_password: str
@@ -124,7 +135,15 @@ class PasswordManagerCryptoHelper:
         password: str
 
         @classmethod
-        def decrypt(
+        async def decrypt(
+            cls,
+            encrypted_record: PasswordManagerCryptoHelper.EncryptedRecord,
+            master_password: str
+        ) -> PasswordManagerCryptoHelper.DecryptedRecord:
+            return await asyncio.to_thread(cls._decrypt_sync, encrypted_record, master_password)
+
+        @classmethod
+        def _decrypt_sync(
             cls,
             encrypted_record: PasswordManagerCryptoHelper.EncryptedRecord,
             master_password: str

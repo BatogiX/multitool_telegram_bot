@@ -15,7 +15,7 @@ class BotConfig(BaseSettings):
     sep: str = " "
     dynamic_buttons_limit: int = Field(default=16, ge=1)
     dynamical_buttons_per_row: int = Field(default=2, ge=1)
-    ttl: int = Field(default=1800, ge=1)
+    ttl: int = Field(default=600, ge=1)
 
     @staticmethod
     def _parse_admins(admin_ids: str) -> set[int]:
