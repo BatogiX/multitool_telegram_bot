@@ -76,7 +76,7 @@ class PasswordManagerCryptoHelper:
         rand_encrypted_record = await db_manager.relational_db.get_rand_password(user_id)
         if rand_encrypted_record:
             try:
-                PasswordManagerCryptoHelper.DecryptedRecord.decrypt(rand_encrypted_record, master_password)
+                cls.DecryptedRecord.decrypt(rand_encrypted_record, master_password)
             except InvalidTag:
                 raise InvalidTag(MSG_ERROR_MASTER_PASS)
 
@@ -146,7 +146,7 @@ class PasswordManagerCryptoHelper:
             derived_key = derive_key(master_password, salt)
             aesgcm = AESGCM(derived_key)
             try:
-                plaintext = aesgcm.decrypt(nonce, ciphertext, None).decode()
+                plaintext = aesgcm.decrypt(nonce, ciphertext, None)
             except InvalidTag:
                 raise
 
