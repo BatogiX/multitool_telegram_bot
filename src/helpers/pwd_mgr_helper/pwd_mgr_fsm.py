@@ -1,72 +1,34 @@
 import csv
-import re
 from io import BytesIO
+from typing import Union
 
 import aiofiles
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BufferedInputFile
-from cryptography.exceptions import InvalidTag
+from pydantic import ValidationError
 
-from config import db_manager, bot_cfg
+from database import db_manager
+from config import bot_cfg
 from keyboards import Keyboards
-from models.db_record.password_record import EncryptedRecord, DecryptedRecord
-from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrUtils
 from utils import BotUtils
 from utils.storage_utils import StorageUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
-from .weak_pwd_exception import WeakPasswordException
+from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrCryptoHelper
+
+DecryptedRecord = PwdMgrCryptoHelper.DecryptedRecord
+EncryptedRecord = PwdMgrCryptoHelper.EncryptedRecord
 
 MAX_CHAR_LIMIT: int = 64
+MSG_ERROR_INVALID_FORMAT: str = "Wrong format"
+MSG_ERROR_LONG_INPUT: str = "Login or password is too long"
 
 
 class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
-    def _validate_master_password(master_password: str) -> bool:
-        """Validate Master Password"""
-        if len(master_password) < 12:
-            raise WeakPasswordException("The Master Password must contain at least 12 characters.")
-
-        if not re.search(r'[A-Z]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one capital letter.")
-
-        if not re.search(r'[a-z]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one lowercase letter.")
-
-        if not re.search(r'[0-9]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one number.")
-
-        if not re.search(r'[\W_]', master_password):
-            raise WeakPasswordException("The Master Password must contain at least one special character.")
-
-        return True
-
-    @classmethod
-    def is_master_password_weak(cls, master_password: str) -> str:
-        try:
-            cls._validate_master_password(master_password)
-        except WeakPasswordException as e:
-            return str(e)
-        return ""
-
-    @staticmethod
-    async def derive_key_from_master_password(master_password: str, message: Message) -> bytes:
-        """derives a key, and verifies correctness."""
-        salt: bytes = await db_manager.relational_db.get_salt(message.from_user.id)
-        key: bytes = PwdMgrUtils.derive_key(master_password, salt)
-        rand_encrypted_record: EncryptedRecord = await db_manager.relational_db.get_rand_password(message.from_user.id)
-
-        if rand_encrypted_record:
-            try:
-                PwdMgrUtils.decrypt_record(encrypted_record=rand_encrypted_record, key=key)
-            except InvalidTag:
-                return b""
-        return key
-
-    @staticmethod
-    async def show_service_logins(message: Message, state: FSMContext, key: bytes, service: str) -> None:
-        pwd_offset: int = await StorageUtils.get_pm_pwd_offset(state)
-        services_offset: int = await StorageUtils.get_pm_services_offset(state)
-        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.get_passwords(
+    async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> tuple[list[DecryptedRecord], int, int, str]:
+        pwd_offset = await StorageUtils.get_pm_pwd_offset(state)
+        services_offset = await StorageUtils.get_pm_services_offset(state)
+        encrypted_records = await db_manager.relational_db.get_passwords(
             user_id=message.from_user.id,
             service=service,
             offset=pwd_offset,
@@ -74,38 +36,36 @@ class PasswordManagerFsmHelper(BotUtils):
         )
         decrypted_records: list[DecryptedRecord] = []
         for encrypted_record in encrypted_records:
-            decrypted_record: DecryptedRecord = PwdMgrUtils.decrypt_record(encrypted_record=encrypted_record, key=key)
-            decrypted_records.append(decrypted_record)
-        text: str = (
+            decrypted_records.append(DecryptedRecord.decrypt(encrypted_record, master_password))
+
+        text = (
             f"*Service:* {service}\n"
             "Choose your login to see password"
         )
-        await message.answer(
-            text=text,
-            reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwd_offset, services_offset),
-            parse_mode="Markdown"
-        )
+
+        return decrypted_records, pwd_offset, services_offset, text
 
     @staticmethod
-    def has_valid_input_length(login: str, password: str) -> bool:
+    def has_valid_input_length(login: str, password: str):
         """Checks if the combined input length exceeds the max character limit."""
-        return len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") <= MAX_CHAR_LIMIT
+        if len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") > MAX_CHAR_LIMIT:
+            raise Exception(MSG_ERROR_LONG_INPUT)
 
     @staticmethod
-    async def create_password_record(login: str, password: str, service: str, message: Message, key: bytes) -> None:
-        encrypted_record = PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key)
-        await db_manager.relational_db.create_password(
-            user_id=message.from_user.id,
-            service=encrypted_record.service,
-            iv=encrypted_record.iv,
-            tag=encrypted_record.tag,
-            ciphertext=encrypted_record.ciphertext
-        )
+    async def create_password_record(decrypted_record: DecryptedRecord, user_id: int, master_password: str) -> None:
+        encrypted_record = EncryptedRecord.encrypt(decrypted_record, master_password)
+        await db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext)
 
     @staticmethod
-    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> tuple:
+    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> Union[str, tuple[str, ...]]:
+        if maxsplit == 1:
+            return user_input
+
         parts = tuple(user_input.split(sep=sep))
-        return parts if len(parts) == maxsplit else tuple()
+        if len(parts) == maxsplit:
+            return parts
+        else:
+            raise Exception(MSG_ERROR_INVALID_FORMAT)
 
     @staticmethod
     async def resend_user_input_request(
@@ -113,57 +73,65 @@ class PasswordManagerFsmHelper(BotUtils):
             message: Message,
             error_message: str,
             current_state: str,
-    ) -> None:
+    ) -> Message:
         await state.set_state(current_state)
-        input_format: str = await StorageUtils.get_pm_input_format_text(state)
-        message_to_delete: Message = await message.answer(
+        input_format = await StorageUtils.get_pm_input_format_text(state)
+        message_to_delete = await message.answer(
             text=f"{error_message}\n\n{input_format}",
             reply_markup=Keyboards.inline.return_to_services(offset=0)
         )
         await StorageUtils.set_message_id_to_delete(state, message_to_delete.message_id)
+        return message_to_delete
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:
-        current_state: str = await state.get_state()
-        await state.set_state(None)
+        current_state = await state.get_state()
+        await state.set_state()
         await BotUtils.delete_fsm_message(state, message)
         await message.delete()
         return current_state
 
     @classmethod
-    async def process_importing_from_file(cls, message: Message, key: bytes):
-        temp_file_path: str = await cls.download_file(message)
+    async def process_importing_from_file(cls, message: Message, master_password: str):
+        try:
+            temp_file_path = await cls.download_file(message)
+        except Exception:
+            raise
 
-        async with aiofiles.open(temp_file_path, "r") as f:
-            content: str = await f.read()
-            lines: list[str] = content.splitlines()
+        try:
+            async with aiofiles.open(temp_file_path, "r", encoding="utf-8") as f:
+                content = await f.read()
+                lines = content.splitlines()
 
-        encrypted_records: list[EncryptedRecord] = []
-        reader = csv.DictReader(lines)
-        for row in reader:
-            service: str = row.get("url", "").replace(bot_cfg.sep, "")
-            login: str = row.get("username", "").replace(bot_cfg.sep, "")
-            password: str = row.get("password", "").replace(bot_cfg.sep, "")
-            if service and login and password:
-                encrypted_records.append(PwdMgrUtils.encrypt_record(service=service, login=login, password=password, key=key))
+            encrypted_records = []
+            reader = csv.DictReader(lines)
+            for row in reader:
+                service = row.get("url", None).replace(bot_cfg.sep, "")
+                login = row.get("username", None).replace(bot_cfg.sep, "")
+                password = row.get("password", None).replace(bot_cfg.sep, "")
+                try:
+                    decrypted_record = DecryptedRecord(service=service, login=login, password=password)
+                except ValidationError:
+                    continue
+                if decrypted_record:
+                    encrypted_records.append(EncryptedRecord.encrypt(decrypted_record, master_password))
 
-        await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
-        await cls._delete_file(temp_file_path)
+            await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
+        except Exception:
+            raise
+        finally:
+            await cls._delete_file(temp_file_path)
 
     @staticmethod
-    async def process_exporting_to_file(key: bytes, user_id: int) -> BufferedInputFile:
-        encrypted_records: list[EncryptedRecord] = await db_manager.relational_db.export_passwords(user_id=user_id)
+    async def process_exporting_to_file(master_password: str, user_id: int) -> BufferedInputFile:
+        encrypted_records = await db_manager.relational_db.export_passwords(user_id=user_id)
 
         csv_lines = ['"url","username","password"']
         for encrypted_record in encrypted_records:
-            decrypted_record: DecryptedRecord = PwdMgrUtils.decrypt_record(
-                encrypted_record=encrypted_record,
-                key=key
-            )
+            decrypted_record = DecryptedRecord.decrypt(encrypted_record, master_password)
             csv_lines.append(f'"{decrypted_record.service}","{decrypted_record.login}","{decrypted_record.password}"')
 
         csv_content = "\n".join(csv_lines).encode('utf-8')
         buffer = BytesIO(csv_content)
 
         return BufferedInputFile(file=buffer.read(), filename=f"{user_id}_passwords.csv")
-

@@ -1,7 +1,8 @@
 from aiogram import Router, F
 from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 
-from config import db_manager, bot_cfg
+from database import db_manager
+from config import bot_cfg
 from keyboards import Keyboards
 from utils import InlineKeyboardsUtils as KbUtils, BotUtils
 

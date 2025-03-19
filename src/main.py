@@ -1,45 +1,39 @@
-import os
-import sys
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
-
 import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from aiogram.fsm.storage.redis import RedisStorage
 
-from config import bot_cfg, db_manager
+from database import db_manager
+from config import bot_cfg
 from handlers import handlers_router
+from middleware import AutoDeleteMessagesMiddleware
+
+bot = Bot(token=bot_cfg.token)
 
 
-async def on_startup() -> tuple[Dispatcher, Bot]:
+async def on_startup() -> Dispatcher:
     logging.info("Bot is starting up...")
     await db_manager.initialize()
-
-    dispatcher = Dispatcher(storage=RedisStorage(await db_manager.key_value_db.connect()))
+    dispatcher = Dispatcher(storage=db_manager.key_value_db.storage)
+    dispatcher.update.middleware.register(AutoDeleteMessagesMiddleware())
     dispatcher.include_router(handlers_router)
-    bot = Bot(token=bot_cfg.token, default_bot_properties=DefaultBotProperties(parse_mode=ParseMode.HTML))
-
-    return dispatcher, bot
+    return dispatcher
 
 
-async def on_shutdown(bot: Bot) -> None:
+async def on_shutdown() -> None:
     logging.info("Bot is shutting down...")
     await bot.session.close()
     await db_manager.close()
 
 
 async def main() -> None:
-    dispatcher, bot = await on_startup()
+    dispatcher = await on_startup()
     try:
         await dispatcher.start_polling(bot)
     except (KeyboardInterrupt, asyncio.CancelledError):
         logging.info("Bot has been manually stopped.")
     finally:
-        await on_shutdown(bot)
+        await on_shutdown()
 
 
 if __name__ == '__main__':

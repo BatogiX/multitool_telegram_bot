@@ -3,8 +3,8 @@ from .pwd_mgr_fsm import PasswordManagerFsmHelper
 
 
 class PasswordManagerHelper(
-    PasswordManagerCryptoHelper,
     PasswordManagerFsmHelper,
+    PasswordManagerCryptoHelper
 ):
     pass
 

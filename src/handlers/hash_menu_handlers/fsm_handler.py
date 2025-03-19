@@ -14,7 +14,7 @@ fsm_router = Router(name=__name__)
 
 
 @fsm_router.message(StateFilter(HashMenuStates), F.document)
-async def process_check_hash(message: Message, state: FSMContext):
+async def process_check_hash(message: Message, state: FSMContext) -> Message:
     await state.set_state(None)
     await BotUtils.delete_fsm_message(state, message)
 
@@ -35,7 +35,7 @@ async def process_check_hash(message: Message, state: FSMContext):
         sep="\n",
     )
 
-    await message.answer(
+    return await message.answer(
         text=response_text,
         parse_mode="Markdown",
         reply_markup=Keyboards.inline.return_to_hash_menu_or_retry(hash_type)

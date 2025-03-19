@@ -1,16 +1,22 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from models.db_record.password_record import DecryptedRecord
+from aiogram.types import InlineKeyboardMarkup
+
 from utils import InlineKeyboardsUtils as KbUtils
+
+if TYPE_CHECKING:
+    from helpers import PasswordManagerHelper
+    DecryptedRecord = PasswordManagerHelper.DecryptedRecord
 
 
 class InlinePasswordManagerKeyboard:
     @classmethod
-    def pwd_mgr_menu(cls):
-        enter_services_button: InlineKeyboardButton = KbUtils.gen_enter_services_button()
-        import_from_file_button: InlineKeyboardButton = KbUtils.gen_import_from_file_button()
-        export_to_file_button: InlineKeyboardButton = KbUtils.gen_export_to_file_button()
-        return_to_start_menu_button: InlineKeyboardButton = KbUtils.gen_return_to_start_menu_button()
+    def pwd_mgr_menu(cls) -> InlineKeyboardMarkup:
+        enter_services_button = KbUtils.gen_enter_services_button()
+        import_from_file_button = KbUtils.gen_import_from_file_button()
+        export_to_file_button = KbUtils.gen_export_to_file_button()
+        return_to_start_menu_button = KbUtils.gen_return_to_start_menu_button()
 
         return InlineKeyboardMarkup(inline_keyboard=[
             [enter_services_button],
@@ -20,8 +26,8 @@ class InlinePasswordManagerKeyboard:
 
     @classmethod
     def pwd_mgr_no_services(cls) -> InlineKeyboardMarkup:
-        return_to_pwd_mgr_button: InlineKeyboardButton = KbUtils.gen_return_to_pwd_mgr_button()
-        create_new_service_button: InlineKeyboardButton = KbUtils.gen_create_service_button(offset=0)
+        return_to_pwd_mgr_button = KbUtils.gen_return_to_pwd_mgr_button()
+        create_new_service_button = KbUtils.gen_create_service_button(offset=0)
 
         return InlineKeyboardMarkup(
             inline_keyboard=
@@ -33,18 +39,18 @@ class InlinePasswordManagerKeyboard:
 
     @classmethod
     def pwd_mgr_services(cls, services: list[str], offset: int = 0) -> InlineKeyboardMarkup:
-        next_page_button: InlineKeyboardButton | None = KbUtils.gen_next_page_services_button(services, offset)
-        search_button: InlineKeyboardButton = KbUtils.gen_search_button()
-        service_buttons_rows: list[list[InlineKeyboardButton]] = KbUtils.gen_service_buttons(services)
-        return_to_pwd_mgr_button: InlineKeyboardButton = KbUtils.gen_return_to_pwd_mgr_button()
-        create_new_service_button: InlineKeyboardButton = KbUtils.gen_create_service_button(offset)
-        delete_services_button: InlineKeyboardButton = KbUtils.gen_delete_services_button(offset)
-        previous_page_button: InlineKeyboardButton | None = KbUtils.gen_previous_page_services_button(offset)
+        next_page_button = KbUtils.gen_next_page_services_button(services, offset)
+        search_button = KbUtils.gen_search_button()
+        service_buttons_rows = KbUtils.gen_service_buttons(services)
+        return_to_pwd_mgr_button = KbUtils.gen_return_to_pwd_mgr_button()
+        create_new_service_button = KbUtils.gen_create_service_button(offset)
+        delete_services_button = KbUtils.gen_delete_services_button(offset)
+        previous_page_button = KbUtils.gen_previous_page_services_button(offset)
 
-        action_buttons_row: list[InlineKeyboardButton] = [
+        action_buttons_row = [
             button for button in [create_new_service_button, delete_services_button] if button
         ]
-        navigation_buttons_row: list[InlineKeyboardButton] = [
+        navigation_buttons_row = [
             button for button in [previous_page_button, return_to_pwd_mgr_button, next_page_button] if button
         ]
 
@@ -66,15 +72,15 @@ class InlinePasswordManagerKeyboard:
             pwd_offset: int,
             services_offset: int
     ) -> InlineKeyboardMarkup:
-        next_page_button: InlineKeyboardButton | None = KbUtils.gen_next_page_pwds_button(decrypted_records, pwd_offset, service)
-        password_buttons_rows: list[list[InlineKeyboardButton]] = KbUtils.gen_pwd_buttons(decrypted_records)
-        change_service_name_button: InlineKeyboardButton = KbUtils.gen_change_service_button(service)
-        delete_service_button: InlineKeyboardButton = KbUtils.gen_delete_service_button(service)
-        return_to_services_button: InlineKeyboardButton = KbUtils.gen_return_to_services_button(services_offset)
-        create_new_password_button: InlineKeyboardButton = KbUtils.gen_create_pwd_button(service)
-        previous_page_button: InlineKeyboardButton | None = KbUtils.gen_previous_page_pwds_button(pwd_offset, service)
+        next_page_button = KbUtils.gen_next_page_pwds_button(decrypted_records, pwd_offset, service)
+        password_buttons_rows = KbUtils.gen_pwd_buttons(decrypted_records)
+        change_service_name_button = KbUtils.gen_change_service_button(service)
+        delete_service_button = KbUtils.gen_delete_service_button(service)
+        return_to_services_button = KbUtils.gen_return_to_services_button(services_offset)
+        create_new_password_button = KbUtils.gen_create_pwd_button(service)
+        previous_page_button = KbUtils.gen_previous_page_pwds_button(pwd_offset, service)
 
-        navigation_buttons_row: list[InlineKeyboardButton] = [
+        navigation_buttons_row = [
             button for button in [previous_page_button, return_to_services_button, next_page_button] if button
         ]
 
@@ -105,6 +111,5 @@ class InlinePasswordManagerKeyboard:
 
     @classmethod
     def pwd_mgr_inline_search(cls, service: str) -> InlineKeyboardMarkup:
-        inline_query_service_button: InlineKeyboardButton = KbUtils.gen_inline_query_service_button(service)
-        
+        inline_query_service_button = KbUtils.gen_inline_query_service_button(service)
         return InlineKeyboardMarkup(inline_keyboard=[[inline_query_service_button]])

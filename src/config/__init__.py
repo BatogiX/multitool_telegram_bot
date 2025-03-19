@@ -2,21 +2,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .bot_config import BotConfig
-from .pwd_mgr_config import PasswordManagerConfig
-from database import DatabaseManager
-from database.postgresql import PostgresqlManager
-from database.redis import RedisManager
-
-bot_cfg = BotConfig()
-pwd_mgr_cfg = PasswordManagerConfig()
-db_manager: DatabaseManager = DatabaseManager(
-    key_value_db=RedisManager(),
-    relational_db=PostgresqlManager()
-)
+from .bot_config import bot_cfg
+from .crypto_config import crypto_cfg
+from .db_config import relational_db_cfg, key_value_db_cfg
 
 __all__ = (
     "bot_cfg",
-    "db_manager",
-    "pwd_mgr_cfg"
+    "crypto_cfg",
+    "relational_db_cfg",
+    "key_value_db_cfg"
 )
