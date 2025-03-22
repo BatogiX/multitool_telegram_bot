@@ -6,7 +6,7 @@ from aiogram.types import InlineKeyboardButton
 from config import bot_cfg
 
 
-class KeyboardsUtils:
+class BaseKeyboardsUtils:
     return_char: str = "⬅️"
     previous_page_char: str = "◀️"
     next_page_char: str = "▶️"

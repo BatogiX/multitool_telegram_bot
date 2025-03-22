@@ -29,10 +29,11 @@ class RedisManager(AbstractKeyValueDatabase):
         await self.redis.close()
         logging.info("Disconnected from Redis")
 
-    async def set(self, key: str, value: Any, expire: Optional[int] = None) -> None:
+    async def set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:
+        key, value = next(iter(data.items()))
         await self.redis.set(key, value, ex=expire)
 
-    async def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> Optional[Any]:
         return await self.redis.get(key)
 
     def _create_connection_pool(self) -> ConnectionPool:

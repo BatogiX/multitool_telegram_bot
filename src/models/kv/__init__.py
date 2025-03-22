@@ -4,6 +4,7 @@ from .pm_input_format import PasswordManagerInputFormat
 from .service import Service
 from .pm_services_offset import PasswordManagerServicesOffset
 from .pm_pwd_offset import PasswordManagerPasswordsOffset
+from .cache_user_created import CacheUserCreated
 
 __all__ = (
     "MessageIdToDelete",
@@ -11,5 +12,6 @@ __all__ = (
     "HashType",
     "PasswordManagerInputFormat",
     "PasswordManagerServicesOffset",
-    "PasswordManagerPasswordsOffset"
+    "PasswordManagerPasswordsOffset",
+    "CacheUserCreated",
 )

@@ -2,10 +2,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING, Any
 
+from aiogram.fsm.storage.base import BaseStorage
+
+from config import bot_cfg
+
 if TYPE_CHECKING:
     from helpers import PasswordManagerHelper
     EncryptedRecord = PasswordManagerHelper.EncryptedRecord
-    from aiogram.fsm.storage.base import BaseStorage
 
 
 class AbstractDatabase(ABC):
@@ -25,17 +28,16 @@ class AbstractKeyValueDatabase(AbstractDatabase):
     storage: BaseStorage
 
     @abstractmethod
-    async def set(self, key: str, value: Any, expire: Optional[int] = None) -> None:
+    async def set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:
         """
         Sets a value with an optional expiration time.
 
-        :param key: The key to store the value under.
-        :param value: The value to store.
+        :param data: Contains key and value
         :param expire: Optional expiration time in seconds.
         """
 
     @abstractmethod
-    async def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> Optional[Any]:
         """
         Gets a value.
 
@@ -52,7 +54,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Create a new user in the database."""
 
     @abstractmethod
-    async def get_services(self, user_id: int, offset: int, limit: int) -> Optional[list[str]]:
+    async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         """Get all services for a user."""
 
     @abstractmethod
@@ -60,7 +62,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Create a new service for a user."""
 
     @abstractmethod
-    async def get_passwords(self, user_id: int, service: str, offset: int, limit: int) -> list[EncryptedRecord]:
+    async def get_passwords(self, user_id: int, service: str, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> list[EncryptedRecord]:
         """Get all passwords of service for a user."""
 
     @abstractmethod
@@ -92,7 +94,7 @@ class AbstractRelationDatabase(AbstractDatabase):
         """Import passwords for a user."""
 
     @abstractmethod
-    async def inline_search_service(self, user_id: int, service: str, limit: int) -> Optional[list[str]]:
+    async def inline_search_service(self, user_id: int, service: str, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         """Search for passwords of service for a user."""
 
     @abstractmethod

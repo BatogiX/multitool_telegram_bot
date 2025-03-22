@@ -33,9 +33,9 @@ async def handle_hash_selection(callback_query: CallbackQuery, state: FSMContext
     hash_type: str = callback_data.hash_type
     new_state: State = await HashMenuHelper.get_state_by_hash_type(hash_type)
 
-    await StorageUtils.set_hash_type(state, hash_type)
+    await StorageUtils.set_hash_type(hash_type, state)
     await state.set_state(new_state)
-    await StorageUtils.set_message_id_to_delete(state, callback_query.message.message_id)
+    await StorageUtils.set_message_id_to_delete(callback_query.message.message_id, state)
 
     return await callback_query.message.edit_text(
         text=HASH_SELECTION_TEXT,

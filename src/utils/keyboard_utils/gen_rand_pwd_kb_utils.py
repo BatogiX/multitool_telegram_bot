@@ -1,10 +1,10 @@
 from aiogram.types import InlineKeyboardButton
 
 from models.callback_data import GenerateRandomPasswordCallback
-from .kb_utils import KeyboardsUtils
+from .kb_utils import BaseKeyboardsUtils
 
 
-class GenerateRandomPasswordKeyboardsUtils(KeyboardsUtils):
+class GenerateRandomPasswordBaseKeyboardsUtils(BaseKeyboardsUtils):
     regenerate_rand_pwd = "🎲 Regenerate Password"
 
     @classmethod

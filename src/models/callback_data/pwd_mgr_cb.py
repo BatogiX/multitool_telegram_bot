@@ -11,9 +11,11 @@ class PasswordManagerCallbackData:
 
     class EnterService(CallbackData, prefix="pm_service", sep=bot_cfg.sep):
         service: str
-        pwd_offset: int
+        services_offset: int
+        pwds_offset: int
 
     class EnterPassword(CallbackData, prefix="pm_pwd", sep=bot_cfg.sep):
+        #   Sensitive data stores in Callback but not in database
         login: str
         password: str
 

@@ -34,9 +34,9 @@ class PasswordManagerFsmHelper(BotUtils):
             offset=pwd_offset,
             limit=bot_cfg.dynamic_buttons_limit
         )
-        decrypted_records: list[DecryptedRecord] = []
+        decrypted_records = []
         for encrypted_record in encrypted_records:
-            decrypted_records.append(DecryptedRecord.decrypt(encrypted_record, master_password))
+            decrypted_records.append(await DecryptedRecord.decrypt(encrypted_record, master_password))
 
         text = (
             f"*Service:* {service}\n"
@@ -53,7 +53,7 @@ class PasswordManagerFsmHelper(BotUtils):
 
     @staticmethod
     async def create_password_record(decrypted_record: DecryptedRecord, user_id: int, master_password: str) -> None:
-        encrypted_record = EncryptedRecord.encrypt(decrypted_record, master_password)
+        encrypted_record = await EncryptedRecord.encrypt(decrypted_record, master_password)
         await db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext)
 
     @staticmethod
@@ -78,17 +78,17 @@ class PasswordManagerFsmHelper(BotUtils):
         input_format = await StorageUtils.get_pm_input_format_text(state)
         message_to_delete = await message.answer(
             text=f"{error_message}\n\n{input_format}",
-            reply_markup=Keyboards.inline.return_to_services(offset=0)
+            reply_markup=Keyboards.inline.return_to_services(services_offset=0)
         )
-        await StorageUtils.set_message_id_to_delete(state, message_to_delete.message_id)
+        await StorageUtils.set_message_id_to_delete(message_to_delete.message_id, state)
         return message_to_delete
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:
+        await message.delete()
+        await BotUtils.delete_fsm_message(state, message)
         current_state = await state.get_state()
         await state.set_state()
-        await BotUtils.delete_fsm_message(state, message)
-        await message.delete()
         return current_state
 
     @classmethod
@@ -128,7 +128,7 @@ class PasswordManagerFsmHelper(BotUtils):
 
         csv_lines = ['"url","username","password"']
         for encrypted_record in encrypted_records:
-            decrypted_record = DecryptedRecord.decrypt(encrypted_record, master_password)
+            decrypted_record = await DecryptedRecord.decrypt(encrypted_record, master_password)
             csv_lines.append(f'"{decrypted_record.service}","{decrypted_record.login}","{decrypted_record.password}"')
 
         csv_content = "\n".join(csv_lines).encode('utf-8')

@@ -13,11 +13,8 @@ inline_query_router = Router(name=__name__)
 async def search(query: InlineQuery):
     search_text = query.query.replace(f"{KbUtils.inline_query_search_service}", "")
 
-    services: list[str] = await db_manager.relational_db.inline_search_service(
-        user_id=query.from_user.id,
-        service=search_text,
-        limit=bot_cfg.dynamic_buttons_limit
-    )
+    services: list[str] = await db_manager.relational_db.inline_search_service(user_id=query.from_user.id, service=search_text,
+                                                                               limit=bot_cfg.dynamic_buttons_limit)
     articles = [
         InlineQueryResultArticle(
             id=service,

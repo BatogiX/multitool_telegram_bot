@@ -1,3 +1,5 @@
+from typing import Union
+
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
@@ -18,7 +20,7 @@ MSG_ERROR_LONG_INPUT = "Login or password is too long"
 MSG_ERROR_MASTER_PASS = "Wrong Master Password"
 MSG_ERROR_NOT_CONFIRMED = "You didn't confirm the action"
 IMPORT_FROM_FILE_TEXT = "Passwords were successfully imported from file\n\n"
-EXPORT_TO_FILE_TEXT = "Passwords were successfully exported to file\n\n"
+EXPORT_TO_FILE_TEXT = "Passwords were successfully exported to file"
 PASSWORD_DELETED_TEXT = "Password was deleted successfully\n\n"
 CHOOSE_LOGIN_TEXT = "\nChoose your login to see password"
 ALL_SERVICES_DELETED_TEXT = "All services deleted successfully"
@@ -38,7 +40,7 @@ async def create_service(message: Message, state: FSMContext) -> Message:
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-    await StorageUtils.set_service(state, service)
+    await StorageUtils.set_service(service, state)
     decrypted_record = DecryptedRecord(service=service, login=login, password=password)
     await PwdMgrHelper.create_password_record(decrypted_record, message.from_user.id, master_password)
     return await message.answer(
@@ -93,7 +95,7 @@ async def delete_password(message: Message, state: FSMContext) -> Message:
 
     decrypted_records = []
     for encrypted_record in encrypted_records:
-        decrypted_record = DecryptedRecord.decrypt(encrypted_record=encrypted_record, master_password=master_password)
+        decrypted_record = await DecryptedRecord.decrypt(encrypted_record=encrypted_record, master_password=master_password)
         if decrypted_record.login == login and decrypted_record.password == password:
             await db_manager.relational_db.delete_password(message.from_user.id, service, encrypted_record.ciphertext)
             continue
@@ -230,18 +232,24 @@ async def import_from_file(message: Message, state: FSMContext) -> Message:
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ExportToFile), F.text)
-async def export_to_file(message: Message, state: FSMContext) -> Message:
+async def export_to_file(message: Message, state: FSMContext) -> Union[tuple[Message, Message], Message]:
     current_state = await PwdMgrHelper.handle_message_deletion(state, message)
     
     try:
-        master_password = await PwdMgrHelper.split_user_input(user_input=message.caption, maxsplit=1)
+        master_password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=1)
         await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
     
     document = await PwdMgrHelper.process_exporting_to_file(master_password=master_password, user_id=message.from_user.id)
-    return await message.answer_document(
+    document_message = await message.answer_document(
         document=document,
-        caption=EXPORT_TO_FILE_TEXT + ENTER_TEXT,
+        caption=EXPORT_TO_FILE_TEXT,
         reply_markup=Keyboards.inline.pwd_mgr_menu()
     )
+    message = await message.answer(
+        document=document,
+        text=ENTER_TEXT,
+        reply_markup=Keyboards.inline.pwd_mgr_menu()
+    )
+    return document_message, message

@@ -1,11 +1,12 @@
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 from asyncpg import Pool, Connection, Record, create_pool
 
 from database.base import AbstractRelationDatabase
 from helpers import PasswordManagerHelper
 from config import relational_db_cfg, bot_cfg
+from utils import StorageUtils
 
 EncryptedRecord = PasswordManagerHelper.EncryptedRecord
 
@@ -15,7 +16,7 @@ class PostgresqlManager(AbstractRelationDatabase):
     Implementation of a relational database manager for PostgreSQL.
     """
     def __init__(self) -> None:
-        self.pool: Optional[Pool] = None
+        self.pool: Pool = cast(Pool, None)  # Will be created in connect()
         self.c = relational_db_cfg
 
     async def connect(self) -> None:
@@ -42,6 +43,10 @@ class PostgresqlManager(AbstractRelationDatabase):
         logging.info("Disconnected from PostgreSQL")
 
     async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
+        if await StorageUtils.get_cache_user_created(user_id):
+            return
+        await StorageUtils.set_cache_user_created(user_id)
+
         await self._execute(
             """
             INSERT INTO public.users (user_id, user_name, full_name)
@@ -52,9 +57,13 @@ class PostgresqlManager(AbstractRelationDatabase):
         )
 
     async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
-        records: list[Record] = await self._fetch_all(
-            "SELECT DISTINCT service FROM public.passwords WHERE user_id = $1 ORDER BY service OFFSET $2 LIMIT $3",
-            user_id, offset, limit + 1
+        records = await self._fetch_all(
+            """
+            SELECT service FROM(SELECT DISTINCT ON (service) service, password_id FROM public.passwords WHERE user_id = $1 ORDER BY service, password_id DESC)
+            ORDER BY password_id DESC
+            OFFSET $2 LIMIT $3
+            """,
+            user_id, offset * limit, limit + 1
         )
         return [record.get("service") for record in records]
 
@@ -64,10 +73,10 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, service, ciphertext
         )
 
-    async def get_passwords(self, user_id: int, service: str, offset: int, limit: int) -> Optional[list[EncryptedRecord]]:
-        records: list[Record] = await self._fetch_all(
+    async def get_passwords(self, user_id: int, service: str, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[EncryptedRecord]]:
+        records = await self._fetch_all(
             "SELECT service, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
-            user_id, service, offset, limit + 1
+            user_id, service, offset * limit, limit + 1
         )
         return [EncryptedRecord(
             service=record.get("service"),
@@ -75,7 +84,7 @@ class PostgresqlManager(AbstractRelationDatabase):
         ) for record in records]
 
     async def get_rand_password(self, user_id: int) -> Optional[EncryptedRecord]:
-        record: Record = await self._fetch_row(
+        record = await self._fetch_row(
             "SELECT service, ciphertext FROM public.passwords WHERE user_id = $1",
             user_id
         )
@@ -121,9 +130,9 @@ class PostgresqlManager(AbstractRelationDatabase):
 
         await self._execute(
             query,
-            [v[0] for v in values],  # user_id
-            [v[1] for v in values],        # service
-            [v[2] for v in values]         # ciphertext
+            [v[0] for v in values], # user_id
+            [v[1] for v in values], # service
+            [v[2] for v in values]  # ciphertext
         )
 
     async def export_passwords(self, user_id: int) -> Optional[list[EncryptedRecord]]:
@@ -136,7 +145,7 @@ class PostgresqlManager(AbstractRelationDatabase):
             ciphertext=record.get("ciphertext")
         ) for record in records]
 
-    async def inline_search_service(self, user_id: int, service: str, limit: int) -> list[str]:
+    async def inline_search_service(self, user_id: int, service: str, limit: int = bot_cfg.dynamic_buttons_limit) -> list[str]:
         records = await self._fetch_all(
             "SELECT DISTINCT service FROM public.passwords WHERE user_id = $1 AND service LIKE $2 LIMIT $3",
             user_id, f"%{service}%", limit

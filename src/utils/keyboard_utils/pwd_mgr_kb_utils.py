@@ -3,17 +3,17 @@ from typing import TYPE_CHECKING, Optional
 
 from aiogram.types import InlineKeyboardButton
 
-from .kb_utils import KeyboardsUtils
+from .kb_utils import BaseKeyboardsUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from config import bot_cfg
-from .. import BotUtils
+from utils import BotUtils
 
 if TYPE_CHECKING:
     from helpers import PasswordManagerHelper
     DecryptedRecord = PasswordManagerHelper.DecryptedRecord
 
 
-class PasswordManagerKeyboardsUtils(KeyboardsUtils):
+class PasswordManagerBaseKeyboardsUtils(BaseKeyboardsUtils):
     enter_services_text = "🌐 Services"
     import_from_file_text = "⬆️📂 Import from file"
     export_to_file_text = "⬇️📁 Export to file"
@@ -36,17 +36,17 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         )
 
     @classmethod
-    def gen_return_to_services_button(cls, offset: int) -> InlineKeyboardButton:
+    def gen_return_to_services_button(cls, services_offset: int) -> InlineKeyboardButton:
         return cls._create_button(
             text=f"{cls.return_char} {cls.return_to_services_text}",
-            callback_data=PwdMgrCb.EnterServices(services_offset=offset)
+            callback_data=PwdMgrCb.EnterServices(services_offset=services_offset)
         )
 
     @classmethod
-    def gen_create_service_button(cls, offset: int) -> InlineKeyboardButton:
+    def gen_create_service_button(cls, services_offset: int) -> InlineKeyboardButton:
         create_new_service_button = cls._create_button(
             text=cls.create_service_text,
-            callback_data=PwdMgrCb.CreateService(services_offset=offset)
+            callback_data=PwdMgrCb.CreateService(services_offset=services_offset)
         )
         return create_new_service_button
 
@@ -59,10 +59,10 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         return create_new_service_button
 
     @classmethod
-    def gen_delete_services_button(cls, offset: int) -> Optional[InlineKeyboardButton]:
+    def gen_delete_services_button(cls, services_offset: int) -> Optional[InlineKeyboardButton]:
         return cls._create_button(
             text=cls.delete_services_text,
-            callback_data=PwdMgrCb.DeleteServices(services_offset=offset)
+            callback_data=PwdMgrCb.DeleteServices(services_offset=services_offset)
         )
 
     @classmethod
@@ -87,11 +87,11 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
         )
 
     @classmethod
-    def gen_service_buttons(cls, services: list[str]) -> list[list[InlineKeyboardButton]]:
+    def gen_service_buttons(cls, services: list[str], services_offset: int) -> list[list[InlineKeyboardButton]]:
         def create_button(service: str) -> InlineKeyboardButton:
             return cls._create_button(
                 text=BotUtils.strip_protocol(service),
-                callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=0)
+                callback_data=PwdMgrCb.EnterService(service=service, services_offset=services_offset, pwds_offset=0)
             )
 
         return cls._gen_dynamic_buttons(services, create_button)
@@ -108,37 +108,45 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
 
     @classmethod
     def gen_previous_page_services_button(cls, offset: int) -> Optional[InlineKeyboardButton]:
+        if offset <= 0:
+            return None
+
         return cls._create_button(
             text=cls.previous_page_char,
-            callback_data=PwdMgrCb.EnterServices(services_offset=offset - bot_cfg.dynamic_buttons_limit)
-        ) if offset > 0 else None
+            callback_data=PwdMgrCb.EnterServices(services_offset=offset - 1)
+        )
 
     @classmethod
     def gen_next_page_services_button(cls, services: list[str], offset: int) -> Optional[InlineKeyboardButton]:
-        if len(services) > bot_cfg.dynamic_buttons_limit:
-            services.pop()
-            return cls._create_button(
-                text=cls.next_page_char,
-                callback_data=PwdMgrCb.EnterServices(services_offset=offset + bot_cfg.dynamic_buttons_limit)
-            )
-        return None
+        if len(services) <= bot_cfg.dynamic_buttons_limit:
+            return None
+
+        services.pop()
+        return cls._create_button(
+            text=cls.next_page_char,
+            callback_data=PwdMgrCb.EnterServices(services_offset=offset + 1)
+        )
 
     @classmethod
-    def gen_previous_page_pwds_button(cls, offset: int, service: str) -> Optional[InlineKeyboardButton]:
+    def gen_previous_page_pwds_button(cls, services_offset: int, pwd_offset: int, service: str) -> Optional[InlineKeyboardButton]:
+        if pwd_offset <= 0:
+            return None
+
         return cls._create_button(
             text=cls.previous_page_char,
-            callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=offset - bot_cfg.dynamic_buttons_limit)
-        ) if offset > 0 else None
+            callback_data=PwdMgrCb.EnterService(service=service, services_offset=services_offset, pwds_offset=pwd_offset - 1)
+        )
 
     @classmethod
-    def gen_next_page_pwds_button(cls, decrypted_records: list[DecryptedRecord], offset: int, service: str) -> Optional[InlineKeyboardButton]:
-        if len(decrypted_records) > bot_cfg.dynamic_buttons_limit:
-            decrypted_records.pop()
-            return cls._create_button(
-                text=cls.next_page_char,
-                callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=offset + bot_cfg.dynamic_buttons_limit)
-            )
-        return None
+    def gen_next_page_pwds_button(cls, decrypted_records: list[DecryptedRecord], services_offset: int, pwds_offset: int, service: str) -> Optional[InlineKeyboardButton]:
+        if len(decrypted_records) <= bot_cfg.dynamic_buttons_limit:
+            return None
+
+        decrypted_records.pop()
+        return cls._create_button(
+            text=cls.next_page_char,
+            callback_data=PwdMgrCb.EnterService(service=service, services_offset=services_offset, pwds_offset=pwds_offset + 1)
+        )
 
     @classmethod
     def gen_enter_services_button(cls) -> InlineKeyboardButton:
@@ -172,5 +180,5 @@ class PasswordManagerKeyboardsUtils(KeyboardsUtils):
     def gen_inline_query_service_button(cls, service: str) -> InlineKeyboardButton:
         return cls._create_button(
             text=service,
-            callback_data=PwdMgrCb.EnterService(service=service, pwd_offset=0)
+            callback_data=PwdMgrCb.EnterService(service=service, services_offset=0, pwds_offset=0)
         )

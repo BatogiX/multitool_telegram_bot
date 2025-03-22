@@ -2,10 +2,10 @@ from aiogram.types import InlineKeyboardButton
 
 from models.callback_data import HashMenuCallbackData, StartMenuCallbackData, PasswordManagerCallbackData as PwdMgrCb, \
     GenerateRandomPasswordCallback
-from .kb_utils import KeyboardsUtils
+from .kb_utils import BaseKeyboardsUtils
 
 
-class StartMenuKeyboardsUtils(KeyboardsUtils):
+class StartMenuBaseKeyboardsUtils(BaseKeyboardsUtils):
     return_to_start_menu_text = "Back to Main Menu"
     hash_menu_text = "🔍 Verify File's Checksum"
     password_manager_text = "🔐 Password manager"
