@@ -6,25 +6,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database import db_manager
-from .callback_handler import SERVICES_TEXT, ENTER_TEXT, NO_SERVICES_TEXT, CONFIRMATION_TEXT, SERVICE_TEXT
+from .texts import ENTER_TEXT, SERVICES_TEXT, NO_SERVICES_TEXT, SERVICE_TEXT, IMPORT_FROM_FILE_FSM, EXPORT_TO_FILE_TEXT, \
+    PASSWORD_DELETED_TEXT, CHOOSE_LOGIN_TEXT, ALL_SERVICES_DELETED_TEXT, SERVICE_DELETED_TEXT
 from keyboards import Keyboards
 from models.states import PasswordManagerStates
 from utils import StorageUtils
 from helpers import PasswordManagerHelper as PwdMgrHelper
 
 DecryptedRecord = PwdMgrHelper.DecryptedRecord
-
-MAX_CHAR_LIMIT = 64
-MSG_ERROR_INVALID_FORMAT = "Wrong format"
-MSG_ERROR_LONG_INPUT = "Login or password is too long"
-MSG_ERROR_MASTER_PASS = "Wrong Master Password"
-MSG_ERROR_NOT_CONFIRMED = "You didn't confirm the action"
-IMPORT_FROM_FILE_TEXT = "Passwords were successfully imported from file\n\n"
-EXPORT_TO_FILE_TEXT = "Passwords were successfully exported to file"
-PASSWORD_DELETED_TEXT = "Password was deleted successfully\n\n"
-CHOOSE_LOGIN_TEXT = "\nChoose your login to see password"
-ALL_SERVICES_DELETED_TEXT = "All services deleted successfully"
-SERVICE_DELETED_TEXT = "Service was deleted successfully\n\n"
 
 fsm_router = Router(name=__name__)
 
@@ -187,24 +176,27 @@ async def delete_services(message: Message, state: FSMContext) -> Message:
 async def delete_service(message: Message, state: FSMContext) -> Message:
     current_state = await PwdMgrHelper.handle_message_deletion(state, message)
 
-    match message.text.upper():
-        case CONFIRMATION_TEXT.upper():
-            service = await StorageUtils.get_service(state)
-            await db_manager.relational_db.delete_service(message.from_user.id, service)
+    try:
+        master_password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=1)
+        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
+    except Exception as e:
+        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-            services = await db_manager.relational_db.get_services(user_id=message.from_user.id, offset=0)
-            if services:
-                return await message.answer(
-                    text=SERVICE_DELETED_TEXT + SERVICES_TEXT,
-                    reply_markup=Keyboards.inline.pwd_mgr_services(services)
-                )
-            else:
-                return await message.answer(
-                    text=SERVICE_DELETED_TEXT + NO_SERVICES_TEXT,
-                    reply_markup=Keyboards.inline.pwd_mgr_no_services()
-                )
-        case _:
-            return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_NOT_CONFIRMED, current_state)
+    service = await StorageUtils.get_service(state)
+    await db_manager.relational_db.delete_service(message.from_user.id, service)
+    services_offset = await StorageUtils.get_pm_services_offset(state)
+
+    services = await db_manager.relational_db.get_services(message.from_user.id, services_offset)
+    if services:
+        return await message.answer(
+            text=SERVICE_DELETED_TEXT + SERVICES_TEXT,
+            reply_markup=Keyboards.inline.pwd_mgr_services(services, services_offset)
+        )
+    else:
+        return await message.answer(
+            text=SERVICE_DELETED_TEXT + NO_SERVICES_TEXT,
+            reply_markup=Keyboards.inline.pwd_mgr_no_services()
+        )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ImportFromFile), F.document)
@@ -226,7 +218,7 @@ async def import_from_file(message: Message, state: FSMContext) -> Message:
         )
     services = await db_manager.relational_db.get_services(message.from_user.id, offset=0)
     return await message.answer(
-        text=IMPORT_FROM_FILE_TEXT + SERVICES_TEXT,
+        text=IMPORT_FROM_FILE_FSM + SERVICES_TEXT,
         reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
     )
 

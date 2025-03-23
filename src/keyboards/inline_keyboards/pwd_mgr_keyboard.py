@@ -38,7 +38,7 @@ class InlinePasswordManagerKeyboard:
         )
 
     @classmethod
-    def pwd_mgr_services(cls, services: list[str], services_offset: int = 0) -> InlineKeyboardMarkup:
+    def pwd_mgr_services(cls, services: list[str], services_offset: int) -> InlineKeyboardMarkup:
         next_page_button = KbUtils.gen_next_page_services_button(services, services_offset)
         search_button = KbUtils.gen_search_button()
         service_buttons_rows = KbUtils.gen_service_buttons(services, services_offset)
@@ -92,7 +92,7 @@ class InlinePasswordManagerKeyboard:
         ])
 
     @classmethod
-    def return_to_services(cls, services_offset) -> InlineKeyboardMarkup:
+    def return_to_services(cls, services_offset: int) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(inline_keyboard=[[KbUtils.gen_return_to_services_button(services_offset)]])
 
     @classmethod
@@ -100,16 +100,20 @@ class InlinePasswordManagerKeyboard:
         return InlineKeyboardMarkup(inline_keyboard=[[KbUtils.gen_return_to_pwd_mgr_button()]])
 
     @classmethod
-    def pwd_mgr_password(cls, offset: int, service: str) -> InlineKeyboardMarkup:
-        return_to_services_button = KbUtils.gen_return_to_services_button(offset)
-        delete_password_button = KbUtils.gen_delete_pwd_button(service)
+    def pwd_mgr_password(cls, service: str, services_offset: int, pwds_offset: int) -> InlineKeyboardMarkup:
+        return_to_passwords_button = KbUtils.gen_return_to_passwords_button(service, services_offset, pwds_offset)
+        delete_password_button = KbUtils.gen_delete_pwd_button(service, services_offset, pwds_offset)
 
         return InlineKeyboardMarkup(inline_keyboard=[
             [delete_password_button],
-            [return_to_services_button]
+            [return_to_passwords_button]
         ])
 
     @classmethod
     def pwd_mgr_inline_search(cls, service: str) -> InlineKeyboardMarkup:
         inline_query_service_button = KbUtils.gen_inline_query_service_button(service)
         return InlineKeyboardMarkup(inline_keyboard=[[inline_query_service_button]])
+
+    @classmethod
+    def return_to_passwords(cls, service: str, services_offset: int, pwds_offset: int) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(inline_keyboard=[[KbUtils.gen_return_to_passwords_button(service, services_offset, pwds_offset)]])

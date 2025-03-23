@@ -25,6 +25,7 @@ class PasswordManagerBaseKeyboardsUtils(BaseKeyboardsUtils):
     delete_password_text = "❌ Delete this password"
     return_to_pwd_mgr_text = "Back to Password Manager"
     return_to_services_text = "Back to Services"
+    return_to_passwords_text = "Back to Passwords"
     search_text = "🔎 Search"
     inline_query_search_service = "service="
 
@@ -80,10 +81,10 @@ class PasswordManagerBaseKeyboardsUtils(BaseKeyboardsUtils):
         )
 
     @classmethod
-    def gen_delete_pwd_button(cls, service: str) -> InlineKeyboardButton:
+    def gen_delete_pwd_button(cls, service: str, services_offset: int, pwds_offset: int) -> InlineKeyboardButton:
         return cls._create_button(
             text=cls.delete_password_text,
-            callback_data=PwdMgrCb.DeletePassword(service=service)
+            callback_data=PwdMgrCb.DeletePassword(service=service, services_offset=services_offset, pwds_offset=pwds_offset)
         )
 
     @classmethod
@@ -181,4 +182,11 @@ class PasswordManagerBaseKeyboardsUtils(BaseKeyboardsUtils):
         return cls._create_button(
             text=service,
             callback_data=PwdMgrCb.EnterService(service=service, services_offset=0, pwds_offset=0)
+        )
+
+    @classmethod
+    def gen_return_to_passwords_button(cls, service: str, services_offset: int, pwds_offset: int) -> InlineKeyboardButton:
+        return cls._create_button(
+            text=f"{cls.return_char} {cls.return_to_passwords_text}",
+            callback_data=PwdMgrCb.EnterService(service=service, services_offset=services_offset, pwds_offset=pwds_offset)
         )

@@ -1,0 +1,31 @@
+#   Callback handler texts
+ENTER_TEXT = "Choose option"
+IMPORT_FROM_FILE_TEXT = "Please send the .csv file and enter your Master Password in caption"
+SERVICES_TEXT = "Choose service"
+NO_SERVICES_TEXT = "You don't have any services yet. Create one now?"
+DELETE_SERVICES_TEXT = "Are you sure you want to delete all services?\n\nIf yes - please enter your Master Password"
+ASK_MASTER_PASSWORD_TEXT = "Please enter your Master Password"
+CREATE_PASSWORD_TEXT = "Please enter your <Master Password> <login> <password>"
+CHANGE_SERVICE_TEXT = "Please enter new service name"
+DELETE_SERVICE_TEXT = f"Are you sure you want to delete this service?\n\nIf yes - please enter your Master Password"
+DELETE_PASSWORD_TEXT = "Are you sure you want to delete this password?\n\nIf yes - please enter your <Master Password> <login> <password>"
+CREATE_SERVICE_TEXT = "Please enter <Master Password> <service name> <login> <password>"
+SERVICE_TEXT = "*Service*: "
+LOGIN_TEXT = "\n\n*Login*: "
+PASSWORD_TEXT = "\n*Password*: "
+WARNING = (
+    "❗WARNING❗\n"
+    "If you lose your Master Password you won't be able to decrypt your passwords. "
+    "We do not store your Master Password and key for encryption/decryption in any way, "
+    "so we won't be able to recover it for you.\n\n"
+    "Your Master Password must be at least 12 characters long and contain at least one number, "
+    "one uppercase letter, one lowercase letter and one special character.\n\n"
+)
+
+# FSM handler texts
+IMPORT_FROM_FILE_FSM = "Passwords were successfully imported from file\n\n"
+EXPORT_TO_FILE_TEXT = "Passwords were successfully exported to file"
+PASSWORD_DELETED_TEXT = "Password was deleted successfully\n\n"
+CHOOSE_LOGIN_TEXT = "\nChoose your login to see password"
+ALL_SERVICES_DELETED_TEXT = "All services deleted successfully"
+SERVICE_DELETED_TEXT = "Service was deleted successfully\n\n"

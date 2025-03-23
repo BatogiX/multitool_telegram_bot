@@ -45,7 +45,6 @@ class PostgresqlManager(AbstractRelationDatabase):
     async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
         if await StorageUtils.get_cache_user_created(user_id):
             return
-        await StorageUtils.set_cache_user_created(user_id)
 
         await self._execute(
             """
@@ -55,6 +54,7 @@ class PostgresqlManager(AbstractRelationDatabase):
             """,
             user_id, user_name, full_name
         )
+        await StorageUtils.set_cache_user_created(user_id)
 
     async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         records = await self._fetch_all(
