@@ -6,10 +6,10 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State
 
+from database import db_manager
 from models.callback_data import HashMenuCallbackData
 from models.states import HashMenuStates
 from utils import BotUtils
-from utils.storage_utils import StorageUtils
 
 
 class HashMenuFsmHelper(BotUtils):
@@ -57,7 +57,7 @@ class HashMenuFsmHelper(BotUtils):
 
     @classmethod
     async def check_hash(cls, state: FSMContext, message: types.Message) -> tuple[bool, str, str, str]:
-        hash_type: str = await StorageUtils.get_hash_type(state)
+        hash_type: str = await db_manager.key_value_db.get_hash_type(state)
         file_path, expected_hash = await cls._get_file_path_and_hash(message)
 
         computed_hash = await cls._calculate_file_hash(file_path, hash_type)

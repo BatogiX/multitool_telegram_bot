@@ -2,9 +2,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING, Any
 
+from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import BaseStorage
 
 from config import bot_cfg
+from models.kv import MessageIdToDelete, Service, HashType, PasswordManagerInputFormat, PasswordManagerPasswordsOffset, PasswordManagerServicesOffset, \
+    CacheUserCreated
 
 if TYPE_CHECKING:
     from helpers import PasswordManagerHelper
@@ -26,6 +29,60 @@ class AbstractDatabase(ABC):
 class AbstractKeyValueDatabase(AbstractDatabase):
     """Abstract class for key-value storage (Redis, Memcached)."""
     storage: BaseStorage
+
+    @staticmethod
+    async def set_message_id_to_delete(message_id: int, state: FSMContext) -> None:
+        await state.update_data(MessageIdToDelete(message_id))
+
+    @staticmethod
+    async def set_service(service_name: str, state: FSMContext) -> None:
+        await state.update_data(Service(service_name))
+
+    @staticmethod
+    async def set_hash_type(hash_type: str, state: FSMContext) -> None:
+        await state.update_data(HashType(hash_type))
+
+    @staticmethod
+    async def set_pm_input_format_text(text: str, state: FSMContext) -> None:
+        await state.update_data(PasswordManagerInputFormat(text))
+
+    @staticmethod
+    async def set_pm_pwd_offset(offset: int, state: FSMContext) -> None:
+        await state.update_data(PasswordManagerPasswordsOffset(offset))
+
+    @staticmethod
+    async def set_pm_services_offset(offset: int, state: FSMContext) -> None:
+        await state.update_data(PasswordManagerServicesOffset(offset))
+
+    async def set_cache_user_created(self, user_id: int) -> None:
+        await self.set(CacheUserCreated(user_id), expire=86400)
+
+    @staticmethod
+    async def get_message_id_to_delete(state: FSMContext) -> int:
+        return await state.get_value(MessageIdToDelete.key)
+
+    @staticmethod
+    async def get_service(state: FSMContext) -> str:
+        return await state.get_value(Service.key)
+
+    @staticmethod
+    async def get_hash_type(state: FSMContext) -> str:
+        return await state.get_value(HashType.key)
+
+    @staticmethod
+    async def get_pm_input_format_text(state: FSMContext) -> str:
+        return await state.get_value(PasswordManagerInputFormat.key)
+
+    @staticmethod
+    async def get_pm_pwd_offset(state: FSMContext) -> int:
+        return await state.get_value(PasswordManagerPasswordsOffset.key)
+
+    @staticmethod
+    async def get_pm_services_offset(state: FSMContext) -> int:
+        return await state.get_value(PasswordManagerServicesOffset.key)
+
+    async def get_cache_user_created(self, user_id: int) -> Optional[str]:
+        return await self.get(CacheUserCreated.key(user_id))
 
     @abstractmethod
     async def set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:

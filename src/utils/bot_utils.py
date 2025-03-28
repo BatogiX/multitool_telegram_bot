@@ -5,7 +5,7 @@ from aiogram import types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
-from utils.storage_utils import StorageUtils
+from database import db_manager
 
 
 class BotUtils:
@@ -45,7 +45,7 @@ class BotUtils:
     @staticmethod
     async def delete_fsm_message(state: FSMContext, message: types.Message) -> None:
         """Deletes message by message_id that stores in FSM-data."""
-        message_id = await StorageUtils.get_message_id_to_delete(state)
+        message_id = await db_manager.key_value_db.get_message_id_to_delete(state)
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id)
         except TelegramBadRequest:

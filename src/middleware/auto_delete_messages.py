@@ -58,7 +58,6 @@ class AutoDeleteMessagesMiddleware(BaseMiddleware):
             try:
                 await message.bot.delete_message(chat_id, message_id)
             except TelegramRetryAfter as e:
-                logging.warning(f"Rate limit exceeded, retrying in {e.retry_after} sec...")
                 await asyncio.sleep(e.retry_after)
                 await message.bot.delete_message(chat_id, message_id)
             except Exception as e:

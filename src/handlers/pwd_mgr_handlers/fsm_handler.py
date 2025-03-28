@@ -10,7 +10,6 @@ from .texts import ENTER_TEXT, SERVICES_TEXT, NO_SERVICES_TEXT, SERVICE_TEXT, IM
     PASSWORD_DELETED_TEXT, CHOOSE_LOGIN_TEXT, ALL_SERVICES_DELETED_TEXT, SERVICE_DELETED_TEXT
 from keyboards import Keyboards
 from models.states import PasswordManagerStates
-from utils import StorageUtils
 from helpers import PasswordManagerHelper as PwdMgrHelper
 
 DecryptedRecord = PwdMgrHelper.DecryptedRecord
@@ -29,7 +28,7 @@ async def create_service(message: Message, state: FSMContext) -> Message:
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-    await StorageUtils.set_service(service, state)
+    await db_manager.key_value_db.set_service(service, state)
     decrypted_record = DecryptedRecord(service=service, login=login, password=password)
     await PwdMgrHelper.create_password_record(decrypted_record, message.from_user.id, master_password)
     return await message.answer(
@@ -39,7 +38,7 @@ async def create_service(message: Message, state: FSMContext) -> Message:
             decrypted_records=[decrypted_record],
             service=service,
             pwd_offset=0,
-            services_offset=await StorageUtils.get_pm_services_offset(state)
+            services_offset=await db_manager.key_value_db.get_pm_services_offset(state)
         )
     )
 
@@ -55,7 +54,7 @@ async def create_password(message: Message, state: FSMContext) -> Message:
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-    service = await StorageUtils.get_service(state)
+    service = await db_manager.key_value_db.get_service(state)
     await PwdMgrHelper.create_password_record(DecryptedRecord(service=service, login=login, password=password), message.from_user.id, master_password)
     decrypted_records, pwd_offset, services_offset, text = await PwdMgrHelper.show_service_logins(message, state, master_password, service)
     return await message.answer(
@@ -75,7 +74,7 @@ async def delete_password(message: Message, state: FSMContext) -> Message:
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-    service = await StorageUtils.get_service(state)
+    service = await db_manager.key_value_db.get_service(state)
     encrypted_records = await db_manager.relational_db.get_passwords(
         user_id=message.from_user.id,
         service=service,
@@ -91,8 +90,8 @@ async def delete_password(message: Message, state: FSMContext) -> Message:
         decrypted_records.append(decrypted_record)
 
     if decrypted_records:
-        offset = await StorageUtils.get_pm_pwd_offset(state)
-        services_offset = await StorageUtils.get_pm_services_offset(state)
+        offset = await db_manager.key_value_db.get_pm_pwd_offset(state)
+        services_offset = await db_manager.key_value_db.get_pm_services_offset(state)
         return await message.answer(
             text=PASSWORD_DELETED_TEXT + SERVICE_TEXT + service + CHOOSE_LOGIN_TEXT,
             reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, offset, services_offset),
@@ -121,7 +120,7 @@ async def service_enter(message: Message, state: FSMContext) -> Message:
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-    service = await StorageUtils.get_service(state)
+    service = await db_manager.key_value_db.get_service(state)
     decrypted_records, pwd_offset, services_offset, text = await PwdMgrHelper.show_service_logins(message, state, master_password, service)
     return await message.answer(
         text=text,
@@ -140,7 +139,7 @@ async def change_service(message: Message, state: FSMContext) -> Message:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
     new_service = new_service[0]
-    old_service = await StorageUtils.get_service(state)
+    old_service = await db_manager.key_value_db.get_service(state)
 
     await db_manager.relational_db.change_service(
         new_service=new_service,
@@ -182,9 +181,9 @@ async def delete_service(message: Message, state: FSMContext) -> Message:
     except Exception as e:
         return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
 
-    service = await StorageUtils.get_service(state)
+    service = await db_manager.key_value_db.get_service(state)
     await db_manager.relational_db.delete_service(message.from_user.id, service)
-    services_offset = await StorageUtils.get_pm_services_offset(state)
+    services_offset = await db_manager.key_value_db.get_pm_services_offset(state)
 
     services = await db_manager.relational_db.get_services(message.from_user.id, services_offset)
     if services:

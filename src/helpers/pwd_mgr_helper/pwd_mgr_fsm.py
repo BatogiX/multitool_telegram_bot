@@ -11,7 +11,6 @@ from database import db_manager
 from config import bot_cfg
 from keyboards import Keyboards
 from utils import BotUtils
-from utils.storage_utils import StorageUtils
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from .pwd_mgr_crypto import PasswordManagerCryptoHelper as PwdMgrCryptoHelper
 
@@ -26,8 +25,8 @@ MSG_ERROR_LONG_INPUT: str = "Login or password is too long"
 class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
     async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> tuple[list[DecryptedRecord], int, int, str]:
-        pwd_offset = await StorageUtils.get_pm_pwd_offset(state)
-        services_offset = await StorageUtils.get_pm_services_offset(state)
+        pwd_offset = await db_manager.key_value_db.get_pm_pwd_offset(state)
+        services_offset = await db_manager.key_value_db.get_pm_services_offset(state)
         encrypted_records = await db_manager.relational_db.get_passwords(
             user_id=message.from_user.id,
             service=service,
@@ -75,12 +74,12 @@ class PasswordManagerFsmHelper(BotUtils):
             current_state: str,
     ) -> Message:
         await state.set_state(current_state)
-        input_format = await StorageUtils.get_pm_input_format_text(state)
+        input_format = await db_manager.key_value_db.get_pm_input_format_text(state)
         message_to_delete = await message.answer(
             text=f"{error_message}\n\n{input_format}",
             reply_markup=Keyboards.inline.return_to_services(services_offset=0)
         )
-        await StorageUtils.set_message_id_to_delete(message_to_delete.message_id, state)
+        await db_manager.key_value_db.set_message_id_to_delete(message_to_delete.message_id, state)
         return message_to_delete
 
     @staticmethod

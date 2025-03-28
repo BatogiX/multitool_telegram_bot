@@ -1,3 +1,5 @@
+import asyncio
+
 from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
@@ -11,7 +13,7 @@ command_router = Router(name=__name__)
 
 @command_router.message(CommandStart())
 async def cmd_start(message: Message) -> Message:
-    await db_manager.relational_db.create_user_if_not_exists(message.from_user.id, message.from_user.username, message.from_user.full_name)
+    asyncio.create_task(db_manager.relational_db.create_user_if_not_exists(message.from_user.id, message.from_user.username, message.from_user.full_name))
     return await message.answer(
         text="Hello! I'm your friendly bot. How can I assist you today?",
         reply_markup=Keyboards.inline.start_menu()

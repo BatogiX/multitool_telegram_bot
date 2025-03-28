@@ -3,10 +3,10 @@ from typing import Optional, cast
 
 from asyncpg import Pool, Connection, Record, create_pool
 
+from database import db_manager
 from database.base import AbstractRelationDatabase
 from helpers import PasswordManagerHelper
 from config import relational_db_cfg, bot_cfg
-from utils import StorageUtils
 
 EncryptedRecord = PasswordManagerHelper.EncryptedRecord
 
@@ -15,9 +15,8 @@ class PostgresqlManager(AbstractRelationDatabase):
     """
     Implementation of a relational database manager for PostgreSQL.
     """
-    def __init__(self) -> None:
-        self.pool: Pool = cast(Pool, None)  # Will be created in connect()
-        self.c = relational_db_cfg
+    pool: Pool = cast(Pool, None)
+    c = relational_db_cfg
 
     async def connect(self) -> None:
         """
@@ -43,7 +42,7 @@ class PostgresqlManager(AbstractRelationDatabase):
         logging.info("Disconnected from PostgreSQL")
 
     async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
-        if await StorageUtils.get_cache_user_created(user_id):
+        if await db_manager.key_value_db.get_cache_user_created(user_id):
             return
 
         await self._execute(
@@ -54,7 +53,7 @@ class PostgresqlManager(AbstractRelationDatabase):
             """,
             user_id, user_name, full_name
         )
-        await StorageUtils.set_cache_user_created(user_id)
+        await db_manager.key_value_db.set_cache_user_created(user_id)
 
     async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         records = await self._fetch_all(

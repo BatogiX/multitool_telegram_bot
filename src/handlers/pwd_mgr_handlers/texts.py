@@ -1,7 +1,7 @@
 #   Callback handler texts
 ENTER_TEXT = "Choose option"
 IMPORT_FROM_FILE_TEXT = "Please send the .csv file and enter your Master Password in caption"
-SERVICES_TEXT = "Choose service"
+SERVICES_TEXT = "Choose service\nPage: "
 NO_SERVICES_TEXT = "You don't have any services yet. Create one now?"
 DELETE_SERVICES_TEXT = "Are you sure you want to delete all services?\n\nIf yes - please enter your Master Password"
 ASK_MASTER_PASSWORD_TEXT = "Please enter your Master Password"
