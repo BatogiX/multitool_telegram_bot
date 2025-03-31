@@ -4,7 +4,7 @@ from typing import Callable, Dict, Any, Awaitable, Union, Set, Optional
 
 import asyncio
 from aiogram import BaseMiddleware
-from aiogram.types import Message, Update, CallbackQuery
+from aiogram.types import Message, Update
 from aiogram.exceptions import TelegramRetryAfter
 from config import bot_cfg
 

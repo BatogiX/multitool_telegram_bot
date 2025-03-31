@@ -1,8 +1,10 @@
 import logging
 from typing import Optional, Any
 
+from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import Redis, ConnectionPool
+import json
 
 from database.base import AbstractKeyValueDatabase
 from config import key_value_db_cfg
@@ -25,15 +27,52 @@ class RedisManager(AbstractKeyValueDatabase):
         else:
             logging.info(f"Connected to Redis via {'URL' if self.c.url else 'host/port'}")
 
+    async def get_values(self, *keys: str, state: FSMContext) -> list[Any]:
+        pipe = self.redis.pipeline(transaction=False)
+
+        data_retrieved = False
+        for key in keys:
+            if key.endswith("_data"):
+                if data_retrieved:
+                    continue
+                data_retrieved = True
+                data_redis_key = self.key_builder.build(state.key, "data")
+                await pipe.get(data_redis_key)
+            elif key == "state":
+                state_redis_key = self.key_builder.build(state.key, "state")
+                await pipe.get(state_redis_key)
+            else:
+                await pipe.get(key)
+        data = await pipe.execute()
+
+        answers = []
+        storage_data = dict()
+        data_retrieved = False
+        for key in keys:
+            if key.endswith("_data"):
+                if data_retrieved:
+                    answers.append(storage_data[key])
+                    continue
+                data_retrieved = True
+                storage_data = json.loads(data.pop(0))
+                answers.append(storage_data[key])
+            else:
+                answers.append(data.pop(0))
+        print(storage_data)
+        print(keys)
+        print(answers)
+        return answers
+
+
     async def close(self) -> None:
         await self.redis.close()
         logging.info("Disconnected from Redis")
 
-    async def set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:
+    async def _set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:
         key, value = next(iter(data.items()))
         await self.redis.set(key, value, ex=expire)
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def _get(self, key: str) -> Optional[Any]:
         return await self.redis.get(key)
 
     def _create_connection_pool(self) -> ConnectionPool:

@@ -6,13 +6,14 @@ import os
 import re
 
 import asyncio
-from argon2.low_level import hash_secret_raw
+import argon2.low_level
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel
 
 from database import db_manager
 from config import crypto_cfg
+from utils import BotUtils
 
 MSG_ERROR_MASTER_PASS = "Wrong Master Password"
 
@@ -44,8 +45,8 @@ def derive_key(master_password: str, salt: bytes) -> bytes:
     :param salt: Salt for key derivation.
     :return: A securely derived 256-bit key.
     """
-    raw_key = hash_secret_raw(
-        secret=master_password.encode(),
+    raw_key = argon2.low_level.hash_secret_raw(
+        secret=master_password.encode() + crypto_cfg.pepper,
         salt=salt,
         time_cost=crypto_cfg.argon2_time_cost,
         memory_cost=crypto_cfg.argon2_memory_cost,
@@ -122,9 +123,10 @@ class PasswordManagerCryptoHelper:
                 "password": decrypted_record.password
             }).encode()
 
-            ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-            ciphertext_with_salt_and_nonce_b64 = base64.urlsafe_b64encode(nonce + ciphertext + salt).decode()
-            return cls(service=decrypted_record.service, ciphertext=ciphertext_with_salt_and_nonce_b64)
+            ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+            ciphertext = base64.urlsafe_b64encode(nonce + ciphertext + salt).decode()
+            service = BotUtils.strip_protocol(decrypted_record.service)
+            return cls(service=service, ciphertext=ciphertext)
 
     class DecryptedRecord(BaseModel):
         """
@@ -165,9 +167,10 @@ class PasswordManagerCryptoHelper:
             derived_key = derive_key(master_password, salt)
             aesgcm = AESGCM(derived_key)
             try:
-                plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+                plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data=None)
             except InvalidTag:
                 raise
 
+            service = BotUtils.add_protocol(encrypted_record.service)
             login, password = json.loads(plaintext).values()
-            return cls(service=encrypted_record.service, login=login, password=password)
+            return cls(service=service, login=login, password=password)

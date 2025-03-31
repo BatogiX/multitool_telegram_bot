@@ -6,12 +6,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from database import db_manager
-from handlers.pwd_mgr_handlers.texts import ENTER_TEXT, IMPORT_FROM_FILE_TEXT, SERVICES_TEXT, NO_SERVICES_TEXT, DELETE_SERVICES_TEXT, ASK_MASTER_PASSWORD_TEXT, \
-    CREATE_PASSWORD_TEXT, CHANGE_SERVICE_TEXT, DELETE_SERVICE_TEXT, DELETE_PASSWORD_TEXT, CREATE_SERVICE_TEXT, SERVICE_TEXT, LOGIN_TEXT, PASSWORD_TEXT, WARNING
+from handlers.pwd_mgr_handlers.texts import *
 from keyboards import Keyboards
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from models.states import PasswordManagerStates
 from utils import BotUtils
+from models.kv import *
 
 callback_router = Router(name=__name__)
 
@@ -30,12 +30,12 @@ async def enter_services(query: CallbackQuery, state: FSMContext, callback_data:
 
     services, _, _ = await asyncio.gather(
         db_manager.relational_db.get_services(query.from_user.id, services_offset),
-        db_manager.key_value_db.set_pm_services_offset(offset=services_offset, state=state),
+        db_manager.key_value_db.set_pm_services_offset(services_offset, state),
         state.set_state(None)
     )
 
     return await query.message.edit_text(
-        text=SERVICES_TEXT + str(services_offset + 1),
+        text=gen_services_text(services_offset),
         reply_markup=Keyboards.inline.pwd_mgr_services(services, services_offset),
     ) if services else await query.message.edit_text(
         text=NO_SERVICES_TEXT,
@@ -83,23 +83,28 @@ async def delete_services(query: CallbackQuery, state: FSMContext, callback_data
 async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterService, state: FSMContext) -> Optional[Message]:
     service, services_offset, pwd_offset = callback_data.service, callback_data.services_offset, callback_data.pwds_offset
 
+    dicts = [
+        Service(service),
+        PasswordManagerPasswordsOffset(pwd_offset),
+        PasswordManagerInputFormat(ASK_MASTER_PASSWORD_TEXT)
+    ]
+
+    if query.message:
+        dicts.append(MessageIdToDelete(query.message.message_id))
+
     await asyncio.gather(
         state.set_state(PasswordManagerStates.EnterService),
-        db_manager.key_value_db.set_service(service, state),
-        db_manager.key_value_db.set_pm_services_offset(services_offset, state),
-        db_manager.key_value_db.set_pm_pwd_offset(pwd_offset, state),
-        db_manager.key_value_db.set_pm_input_format_text(ASK_MASTER_PASSWORD_TEXT, state)
+        db_manager.key_value_db.set_values(state, *dicts)
     )
 
-    #   Default Callback
+    #  Default Callback
     if query.message:
-        await db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state)
         return await query.message.edit_text(
             text=ASK_MASTER_PASSWORD_TEXT,
             reply_markup=Keyboards.inline.return_to_services(services_offset)
         )
 
-    #   Callback from inline_query (Message can't be deleted)
+    #  Callback from inline_query (Message can't be deleted)
     await query.bot.send_message(
         chat_id=query.from_user.id,
         text=ASK_MASTER_PASSWORD_TEXT,
@@ -111,11 +116,15 @@ async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterServi
 async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePassword, state: FSMContext) -> Message:
     service, services_offset, pwds_offset = callback_data.service, callback_data.services_offset, callback_data.pwds_offset
 
+    dicts = [
+        Service(service),
+        MessageIdToDelete(query.message.message_id),
+        PasswordManagerInputFormat(CREATE_PASSWORD_TEXT)
+    ]
+
     await asyncio.gather(
         state.set_state(PasswordManagerStates.CreatePassword),
-        db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_service(service, state),
-        db_manager.key_value_db.set_pm_input_format_text(CREATE_PASSWORD_TEXT, state)
+        db_manager.key_value_db.set_values(state, *dicts)
     )
 
     return await query.message.edit_text(
@@ -128,22 +137,20 @@ async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePa
 async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPassword, state: FSMContext) -> Message:
     login, password = BotUtils.escape_markdown_v2(callback_data.login), BotUtils.escape_markdown_v2(callback_data.password)
 
-    service, services_offset, pwds_offset = await asyncio.gather(
-        db_manager.key_value_db.get_service(state),
-        db_manager.key_value_db.get_pm_services_offset(state),
-        db_manager.key_value_db.get_pm_pwd_offset(state)
-    )
-    service = BotUtils.escape_markdown_v2(service)
+    # service, services_offset, pwds_offset = await asyncio.gather(
+    #     db_manager.key_value_db.get_service(state),
+    #     db_manager.key_value_db.get_pm_services_offset(state),
+    #     db_manager.key_value_db.get_pm_pwd_offset(state)
+    # )
 
-    text = (
-        SERVICE_TEXT + service +
-        LOGIN_TEXT + f"`{login}`" +
-        PASSWORD_TEXT + f"`{password}`"
+    service, services_offset, pwds_offset, cache, cur_state = await db_manager.key_value_db.get_values(
+        Service.key, PasswordManagerServicesOffset.key, PasswordManagerPasswordsOffset.key, CacheUserCreated.key(query.from_user.id), "state",
+        state=state
     )
 
     return await query.message.edit_text(
-        text=text,
-        reply_markup=Keyboards.inline.pwd_mgr_password(service, services_offset, pwds_offset),
+        text=gen_credentials(service, login, password),
+        reply_markup=Keyboards.inline.pwd_mgr_password(service, login, password, pwds_offset, services_offset),
         parse_mode="MarkdownV2"
     )
 
@@ -184,17 +191,19 @@ async def delete_service(query: CallbackQuery, state: FSMContext, callback_data:
 
 @callback_router.callback_query(PwdMgrCb.DeletePassword.filter())
 async def delete_password(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.DeletePassword) -> Message:
-    service, services_offset, pwds_offset = callback_data.service, callback_data.services_offset, callback_data.pwds_offset
+    login, password = callback_data.login, callback_data.password  # No need to escape MarkdownV2
 
-    await asyncio.gather(
+    service, _, _, _ = await asyncio.gather(
+        db_manager.key_value_db.get_service(state),
         state.set_state(PasswordManagerStates.DeletePassword),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(DELETE_PASSWORD_TEXT, state)
     )
 
     return await query.message.edit_text(
-        text=DELETE_PASSWORD_TEXT,
-        reply_markup=Keyboards.inline.return_to_password(service, services_offset, pwds_offset)
+        text=gen_credentials(service, login, password) + BotUtils.escape_markdown_v2(DELETE_PASSWORD_TEXT),
+        reply_markup=Keyboards.inline.return_to_password(login, password),
+        parse_mode="MarkdownV2"
     )
 
 

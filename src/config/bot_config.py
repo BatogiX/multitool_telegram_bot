@@ -6,12 +6,8 @@ from pydantic import Field
 class BotConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BOT_", frozen=True)
 
-    # Bot token mandatory attribute
-    token: str
-
-    # Set of admin ids (must be separated by comma)
-    admins: set[int]
-
+    token: str  # Bot token mandatory attribute
+    admins: set[int]  # Set of admin ids (must be separated by comma)
     sep: str = " "
     dynamic_buttons_limit: int = Field(default=16, ge=1)
     dynamical_buttons_per_row: int = Field(default=2, ge=1)

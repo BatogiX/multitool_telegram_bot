@@ -1,3 +1,4 @@
+import asyncio
 import csv
 from io import BytesIO
 from typing import Union
@@ -24,39 +25,35 @@ MSG_ERROR_LONG_INPUT: str = "Login or password is too long"
 
 class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
-    async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> tuple[list[DecryptedRecord], int, int, str]:
-        pwd_offset = await db_manager.key_value_db.get_pm_pwd_offset(state)
-        services_offset = await db_manager.key_value_db.get_pm_services_offset(state)
+    async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> tuple[list[DecryptedRecord], int, int]:
+        pwd_offset, services_offset = await asyncio.gather(
+            db_manager.key_value_db.get_pm_pwd_offset(state),
+            db_manager.key_value_db.get_pm_services_offset(state),
+        )
         encrypted_records = await db_manager.relational_db.get_passwords(
             user_id=message.from_user.id,
             service=service,
-            offset=pwd_offset,
-            limit=bot_cfg.dynamic_buttons_limit
+            offset=pwd_offset
         )
         decrypted_records = []
         for encrypted_record in encrypted_records:
             decrypted_records.append(await DecryptedRecord.decrypt(encrypted_record, master_password))
 
-        text = (
-            f"*Service:* {service}\n"
-            "Choose your login to see password"
-        )
-
-        return decrypted_records, pwd_offset, services_offset, text
+        return decrypted_records, pwd_offset, services_offset
 
     @staticmethod
     def has_valid_input_length(login: str, password: str):
         """Checks if the combined input length exceeds the max character limit."""
         if len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") > MAX_CHAR_LIMIT:
-            raise Exception(MSG_ERROR_LONG_INPUT)
+            raise ValueError(MSG_ERROR_LONG_INPUT)
 
     @staticmethod
     async def create_password_record(decrypted_record: DecryptedRecord, user_id: int, master_password: str) -> None:
         encrypted_record = await EncryptedRecord.encrypt(decrypted_record, master_password)
-        await db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext)
+        asyncio.create_task(db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext))
 
     @staticmethod
-    async def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> Union[str, tuple[str, ...]]:
+    def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> Union[str, tuple[str, ...]]:
         if maxsplit == 1:
             return user_input
 
@@ -73,8 +70,10 @@ class PasswordManagerFsmHelper(BotUtils):
             error_message: str,
             current_state: str,
     ) -> Message:
-        await state.set_state(current_state)
-        input_format = await db_manager.key_value_db.get_pm_input_format_text(state)
+        input_format, _ = await asyncio.gather(
+            db_manager.key_value_db.get_pm_input_format_text(state),
+            state.set_state(current_state)
+        )
         message_to_delete = await message.answer(
             text=f"{error_message}\n\n{input_format}",
             reply_markup=Keyboards.inline.return_to_services(services_offset=0)
@@ -84,10 +83,11 @@ class PasswordManagerFsmHelper(BotUtils):
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:
-        await message.delete()
-        await BotUtils.delete_fsm_message(state, message)
-        current_state = await state.get_state()
-        await state.set_state()
+        get_task = asyncio.create_task(state.get_state())
+        asyncio.create_task(message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id))
+        asyncio.create_task(BotUtils.delete_fsm_message(state, message))
+        current_state = await get_task
+        asyncio.create_task(state.set_state())
         return current_state
 
     @classmethod
@@ -101,25 +101,26 @@ class PasswordManagerFsmHelper(BotUtils):
             async with aiofiles.open(temp_file_path, "r", encoding="utf-8") as f:
                 content = await f.read()
                 lines = content.splitlines()
-
-            encrypted_records = []
-            reader = csv.DictReader(lines)
-            for row in reader:
-                service = row.get("url", None).replace(bot_cfg.sep, "")
-                login = row.get("username", None).replace(bot_cfg.sep, "")
-                password = row.get("password", None).replace(bot_cfg.sep, "")
-                try:
-                    decrypted_record = DecryptedRecord(service=service, login=login, password=password)
-                except ValidationError:
-                    continue
-                if decrypted_record:
-                    encrypted_records.append(EncryptedRecord.encrypt(decrypted_record, master_password))
-
-            await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
         except Exception:
             raise
         finally:
             await cls._delete_file(temp_file_path)
+
+        encrypted_records = []
+        reader = csv.DictReader(lines)
+        for row in reader:
+            service = row.get("url", None).replace(bot_cfg.sep, "")
+            login = row.get("username", None).replace(bot_cfg.sep, "")
+            password = row.get("password", None).replace(bot_cfg.sep, "")
+            try:
+                cls.has_valid_input_length(login, password)
+                decrypted_record = DecryptedRecord(service=service, login=login, password=password)
+            except (ValueError, ValidationError):
+                continue
+            encrypted_records.append(await EncryptedRecord.encrypt(decrypted_record, master_password))
+
+        await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
+
 
     @staticmethod
     async def process_exporting_to_file(master_password: str, user_id: int) -> BufferedInputFile:

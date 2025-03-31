@@ -7,42 +7,49 @@ class PasswordManagerCallbackData:
     class Enter(CallbackData, prefix="pm_enter", sep=bot_cfg.sep): ...
     class ImportFromFile(CallbackData, prefix="pm_import_from_file", sep=bot_cfg.sep): ...
     class ExportToFile(CallbackData, prefix="pm_export_to_file", sep=bot_cfg.sep): ...
+    class ChangeMasterPassword(CallbackData, prefix="pm_change_master_password", sep=bot_cfg.sep): ...
 
-    class CreateService(CallbackData, prefix="pm_create_service", sep=bot_cfg.sep):
+    class EnterServices(CallbackData, prefix="pmesvcs", sep=bot_cfg.sep):
         services_offset: int
 
-    class EnterServices(CallbackData, prefix="pm_services", sep=bot_cfg.sep):
+    class DeleteServices(CallbackData, prefix="pmdsvcs", sep=bot_cfg.sep):
         services_offset: int
 
-    class DeleteServices(CallbackData, prefix="pm_delete_services", sep=bot_cfg.sep):
+    class CreateService(CallbackData, prefix="pmasvc", sep=bot_cfg.sep):
         services_offset: int
 
-    class EnterService(CallbackData, prefix="pm_service", sep=bot_cfg.sep):
+    class EnterService(CallbackData, prefix="pmesvc", sep=bot_cfg.sep):
         service: str
         services_offset: int
         pwds_offset: int
 
-    class CreatePassword(CallbackData, prefix="pm_create_password", sep=bot_cfg.sep):
+    class DeleteService(CallbackData, prefix="pmdsvc", sep=bot_cfg.sep):
         service: str
         services_offset: int
         pwds_offset: int
 
-    class DeleteService(CallbackData, prefix="pm_delete_service", sep=bot_cfg.sep):
+    class ChangeService(CallbackData, prefix="pmcsvc", sep=bot_cfg.sep):
         service: str
         services_offset: int
         pwds_offset: int
 
-    class DeletePassword(CallbackData, prefix="pm_delete_password", sep=bot_cfg.sep):
+    class CreatePassword(CallbackData, prefix="pmapwd", sep=bot_cfg.sep):
         service: str
         services_offset: int
         pwds_offset: int
 
-    class ChangeService(CallbackData, prefix="pm_change_service", sep=bot_cfg.sep):
-        service: str
-        services_offset: int
-        pwds_offset: int
+    class DeletePassword(CallbackData, prefix="pmdpwd", sep=bot_cfg.sep):
+        login: str
+        password: str
 
-    class EnterPassword(CallbackData, prefix="pm_pwd", sep=bot_cfg.sep):
-        #   Sensitive data is stored in Callback, but not in database
+    class EnterPassword(CallbackData, prefix="pmepwd", sep=bot_cfg.sep):
+        login: str
+        password: str
+
+    class ChangePassword(CallbackData, prefix="pmcpwd", sep=bot_cfg.sep):
+        login: str
+        password: str
+
+    class ChangeLogin(CallbackData, prefix="pmclog", sep=bot_cfg.sep):
         login: str
         password: str

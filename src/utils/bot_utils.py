@@ -57,4 +57,8 @@ class BotUtils:
 
     @staticmethod
     def strip_protocol(service: str) -> str:
-        return re.sub(r"^https?://", "", service)
+        return re.sub(r"^(https?://)|(www\.)", "", service)
+
+    @staticmethod
+    def add_protocol(service: str) -> str:
+        return f"https://{service}"

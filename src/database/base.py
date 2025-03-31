@@ -3,11 +3,10 @@ from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING, Any
 
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.base import BaseStorage
+from aiogram.fsm.storage.base import BaseStorage, KeyBuilder, DefaultKeyBuilder
 
 from config import bot_cfg
-from models.kv import MessageIdToDelete, Service, HashType, PasswordManagerInputFormat, PasswordManagerPasswordsOffset, PasswordManagerServicesOffset, \
-    CacheUserCreated
+from models.kv import *
 
 if TYPE_CHECKING:
     from helpers import PasswordManagerHelper
@@ -29,6 +28,14 @@ class AbstractDatabase(ABC):
 class AbstractKeyValueDatabase(AbstractDatabase):
     """Abstract class for key-value storage (Redis, Memcached)."""
     storage: BaseStorage
+    key_builder: KeyBuilder = DefaultKeyBuilder()
+
+    @staticmethod
+    async def set_values(state: FSMContext, *dicts: dict[str, Any]) -> Any:
+        data = dict()
+        for d in dicts:
+            data.update(d)
+        await state.update_data(data)
 
     @staticmethod
     async def set_message_id_to_delete(message_id: int, state: FSMContext) -> None:
@@ -55,7 +62,10 @@ class AbstractKeyValueDatabase(AbstractDatabase):
         await state.update_data(PasswordManagerServicesOffset(offset))
 
     async def set_cache_user_created(self, user_id: int) -> None:
-        await self.set(CacheUserCreated(user_id), expire=86400)
+        await self._set(CacheUserCreated(user_id), expire=86400)
+
+    @abstractmethod
+    async def get_values(self, *keys: str, state: FSMContext) -> tuple[Any]: ...
 
     @staticmethod
     async def get_message_id_to_delete(state: FSMContext) -> int:
@@ -82,10 +92,10 @@ class AbstractKeyValueDatabase(AbstractDatabase):
         return await state.get_value(PasswordManagerServicesOffset.key)
 
     async def get_cache_user_created(self, user_id: int) -> Optional[str]:
-        return await self.get(CacheUserCreated.key(user_id))
+        return await self._get(CacheUserCreated.key(user_id))
 
     @abstractmethod
-    async def set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:
+    async def _set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:
         """
         Sets a value with an optional expiration time.
 
@@ -94,7 +104,7 @@ class AbstractKeyValueDatabase(AbstractDatabase):
         """
 
     @abstractmethod
-    async def get(self, key: str) -> Optional[Any]:
+    async def _get(self, key: str) -> Optional[Any]:
         """
         Gets a value.
 
