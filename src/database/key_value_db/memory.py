@@ -21,10 +21,10 @@ class MemoryStorageManager(AbstractKeyValueDatabase):
         await self.storage.close()
         logging.info("MemoryStorage has been closed")
 
-    async def _set(self, key: str, value: Any, expire: Optional[int] = None):
+    async def _set_value(self, key: str, value: Any, expire: Optional[int] = None):
         pass
 
-    async def _get(self, key: str) -> Optional[Any]:
+    async def _get_value_from_data(self, key: str) -> Optional[Any]:
         pass
 
 

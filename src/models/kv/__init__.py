@@ -5,6 +5,7 @@ from .service import Service
 from .pm_services_offset import PasswordManagerServicesOffset
 from .pm_pwd_offset import PasswordManagerPasswordsOffset
 from .cache_user_created import CacheUserCreated
+from .state import GetState, SetState
 
 __all__ = (
     "MessageIdToDelete",
@@ -14,4 +15,6 @@ __all__ = (
     "PasswordManagerServicesOffset",
     "PasswordManagerPasswordsOffset",
     "CacheUserCreated",
+    "GetState",
+    "SetState"
 )

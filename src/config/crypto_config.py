@@ -24,4 +24,4 @@ class CryptographyConfig(BaseSettings):
     argon2_type: Type = Type.ID                                    # Argon2id
 
 
-crypto_cfg = CryptographyConfig()
+crypto_cfg: CryptographyConfig = CryptographyConfig()

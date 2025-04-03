@@ -43,5 +43,5 @@ class RelationalDatabaseConfig(BaseSettings):
     max_queries: int = Field(default=1000, ge=1)
 
 
-relational_db_cfg = RelationalDatabaseConfig()
-key_value_db_cfg = KeyValueDatabaseConfig()
+relational_db_cfg: RelationalDatabaseConfig = RelationalDatabaseConfig()
+key_value_db_cfg: KeyValueDatabaseConfig = KeyValueDatabaseConfig()

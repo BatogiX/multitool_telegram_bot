@@ -58,4 +58,4 @@ class DatabaseManager:
         return BACKEND_MAPPING[db_name]
 
 
-db_manager = DatabaseManager()
+db_manager: DatabaseManager = DatabaseManager()

@@ -1,12 +1,15 @@
 from __future__ import annotations
+
+import json
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING, Any
+from typing import Optional, TYPE_CHECKING, Any, Union, Callable, Awaitable
 
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.base import BaseStorage, KeyBuilder, DefaultKeyBuilder
+from aiogram.fsm.state import State
+from aiogram.fsm.storage.base import BaseStorage, KeyBuilder, DefaultKeyBuilder, StorageKey
 
-from config import bot_cfg
 from models.kv import *
+from config import bot_cfg
 
 if TYPE_CHECKING:
     from helpers import PasswordManagerHelper
@@ -30,16 +33,24 @@ class AbstractKeyValueDatabase(AbstractDatabase):
     storage: BaseStorage
     key_builder: KeyBuilder = DefaultKeyBuilder()
 
-    @staticmethod
-    async def set_values(state: FSMContext, *dicts: dict[str, Any]) -> Any:
-        data = dict()
-        for d in dicts:
-            data.update(d)
-        await state.update_data(data)
+    async def set_state(self, state_value: Optional[State] = None, storage_key: Optional[StorageKey] = None, batch_mode: bool = False):
+        state_value = state_value.state if state_value else None
+        if batch_mode:
+            return SetState.batch(state_value)
+        await self._set_value(SetState.key(storage_key), state_value)
 
-    @staticmethod
-    async def set_message_id_to_delete(message_id: int, state: FSMContext) -> None:
-        await state.update_data(MessageIdToDelete(message_id))
+    async def get_state(self, storage_key: Optional[StorageKey] = None, batch_mode: bool = False):
+        if batch_mode:
+            return GetState.batch()
+        await self._get_value(GetState.key(storage_key))
+
+    @abstractmethod
+    async def execute_batch(self, *coroutines: Callable[..., Awaitable[Union[str, dict[str, Any]]]], storage_key: StorageKey): ...
+
+    async def set_message_id_to_delete(self, msg_id: int, storage_key: StorageKey, batch_mode: bool = False) -> Optional[dict]:
+        if batch_mode:
+            return {"data": {"message_id_to_delete_data": msg_id}, "type": "data"}
+        await self._update_data({"message_id_to_delete_data": msg_id}, storage_key)
 
     @staticmethod
     async def set_service(service_name: str, state: FSMContext) -> None:
@@ -62,14 +73,12 @@ class AbstractKeyValueDatabase(AbstractDatabase):
         await state.update_data(PasswordManagerServicesOffset(offset))
 
     async def set_cache_user_created(self, user_id: int) -> None:
-        await self._set(CacheUserCreated(user_id), expire=86400)
+        await self._set_value(CacheUserCreated.key(user_id), user_id, expire=86400)
 
-    @abstractmethod
-    async def get_values(self, *keys: str, state: FSMContext) -> tuple[Any]: ...
-
-    @staticmethod
-    async def get_message_id_to_delete(state: FSMContext) -> int:
-        return await state.get_value(MessageIdToDelete.key)
+    async def get_message_id_to_delete(self, storage_key: StorageKey, batch_mode: bool = False) -> Union[int, dict]:
+        if batch_mode:
+            return {"data": "message_id_to_delete_data", "type": "data"}
+        return await self._get_value_from_data("message_id_to_delete", storage_key)
 
     @staticmethod
     async def get_service(state: FSMContext) -> str:
@@ -92,10 +101,10 @@ class AbstractKeyValueDatabase(AbstractDatabase):
         return await state.get_value(PasswordManagerServicesOffset.key)
 
     async def get_cache_user_created(self, user_id: int) -> Optional[str]:
-        return await self._get(CacheUserCreated.key(user_id))
+        return await self._get_value(CacheUserCreated.key(user_id))
 
     @abstractmethod
-    async def _set(self, data: dict[str, Any], expire: Optional[int] = None) -> None:
+    async def _set_value(self, key: str, value: Any, expire: Optional[int] = None) -> None:
         """
         Sets a value with an optional expiration time.
 
@@ -104,7 +113,7 @@ class AbstractKeyValueDatabase(AbstractDatabase):
         """
 
     @abstractmethod
-    async def _get(self, key: str) -> Optional[Any]:
+    async def _get_value(self, key: str) -> Optional[Any]:
         """
         Gets a value.
 
@@ -112,6 +121,19 @@ class AbstractKeyValueDatabase(AbstractDatabase):
         :return: The stored value or None if not found.
         """
 
+    async def _get_data(self, key: str) -> dict:
+        current_data = await self._get_value(key)
+        return json.loads(current_data)
+
+    async def _update_data(self, data: dict[str, Any], storage_key: StorageKey) -> None:
+        key = self.key_builder.build(storage_key)
+        current_data = await self._get_data(key)
+        current_data.update(data)
+        await self._set_value(key, json.dumps(current_data))
+
+    async def _get_value_from_data(self, key: str, storage_key: StorageKey) -> Optional[Any]:
+        current_data = await self._get_data(self.key_builder.build(storage_key))
+        return current_data.get(key, None)
 
 class AbstractRelationDatabase(AbstractDatabase):
     """Abstract class for relational databases."""

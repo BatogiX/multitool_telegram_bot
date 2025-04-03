@@ -28,10 +28,17 @@ async def enter(query: CallbackQuery) -> Message:
 async def enter_services(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.EnterServices) -> Message:
     services_offset = callback_data.services_offset
 
-    services, _, _ = await asyncio.gather(
+    commands = [
+        PasswordManagerServicesOffset(services_offset),
+        GetState(None, state.key)
+    ]
+    services, _ = await asyncio.gather(
         db_manager.relational_db.get_services(query.from_user.id, services_offset),
-        db_manager.key_value_db.set_pm_services_offset(services_offset, state),
-        state.set_state(None)
+        db_manager.key_value_db.execute_batch(
+            db_manager.key_value_db.set_pm_services_offset(),
+            db_manager.key_value_db.set_state(None, state.key),
+            storage_key=state.key
+        )
     )
 
     return await query.message.edit_text(
@@ -47,11 +54,14 @@ async def enter_services(query: CallbackQuery, state: FSMContext, callback_data:
 async def create_service(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.CreateService) -> Message:
     services_offset = callback_data.services_offset
 
-    record, _, _, _ = await asyncio.gather(
+    commands = [
+        MessageIdToDelete(query.message.message_id),
+        PasswordManagerInputFormat(CREATE_SERVICE_TEXT),
+        GetState(PasswordManagerStates.CreateService, state.key)
+    ]
+    record, _ = await asyncio.gather(
         db_manager.relational_db.get_rand_password(query.from_user.id),
-        state.set_state(PasswordManagerStates.CreateService),
-        db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(CREATE_SERVICE_TEXT, state)
+        db_manager.key_value_db.execute_batch(*commands)
     )
 
     return await query.message.edit_text(
@@ -67,10 +77,10 @@ async def create_service(query: CallbackQuery, state: FSMContext, callback_data:
 async def delete_services(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.DeleteServices) -> Message:
     services_offset = callback_data.services_offset
 
-    await asyncio.gather(
-        state.set_state(PasswordManagerStates.DeleteServices),
-        db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(DELETE_SERVICES_TEXT, state)
+    await db_manager.key_value_db.execute_batch(
+        MessageIdToDelete(query.message.message_id),
+        PasswordManagerInputFormat(DELETE_SERVICES_TEXT),
+        GetState(PasswordManagerStates.DeleteServices, state.key)
     )
 
     return await query.message.edit_text(
@@ -83,19 +93,17 @@ async def delete_services(query: CallbackQuery, state: FSMContext, callback_data
 async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterService, state: FSMContext) -> Optional[Message]:
     service, services_offset, pwd_offset = callback_data.service, callback_data.services_offset, callback_data.pwds_offset
 
-    dicts = [
+    commands = [
         Service(service),
         PasswordManagerPasswordsOffset(pwd_offset),
-        PasswordManagerInputFormat(ASK_MASTER_PASSWORD_TEXT)
+        PasswordManagerInputFormat(ASK_MASTER_PASSWORD_TEXT),
+        GetState(PasswordManagerStates.EnterService, state.key)
     ]
 
     if query.message:
-        dicts.append(MessageIdToDelete(query.message.message_id))
+        commands.append(MessageIdToDelete(query.message.message_id))
 
-    await asyncio.gather(
-        state.set_state(PasswordManagerStates.EnterService),
-        db_manager.key_value_db.set_values(state, *dicts)
-    )
+    await db_manager.key_value_db.execute_batch(*commands)
 
     #  Default Callback
     if query.message:
@@ -116,15 +124,11 @@ async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterServi
 async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePassword, state: FSMContext) -> Message:
     service, services_offset, pwds_offset = callback_data.service, callback_data.services_offset, callback_data.pwds_offset
 
-    dicts = [
+    await db_manager.key_value_db.execute_batch(
         Service(service),
         MessageIdToDelete(query.message.message_id),
-        PasswordManagerInputFormat(CREATE_PASSWORD_TEXT)
-    ]
-
-    await asyncio.gather(
-        state.set_state(PasswordManagerStates.CreatePassword),
-        db_manager.key_value_db.set_values(state, *dicts)
+        PasswordManagerInputFormat(CREATE_PASSWORD_TEXT),
+        GetState(PasswordManagerStates.CreatePassword, state.key)
     )
 
     return await query.message.edit_text(
@@ -134,18 +138,13 @@ async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePa
 
 
 @callback_router.callback_query(PwdMgrCb.EnterPassword.filter())
-async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPassword, state: FSMContext) -> Message:
+async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPassword) -> Message:
     login, password = BotUtils.escape_markdown_v2(callback_data.login), BotUtils.escape_markdown_v2(callback_data.password)
 
-    # service, services_offset, pwds_offset = await asyncio.gather(
-    #     db_manager.key_value_db.get_service(state),
-    #     db_manager.key_value_db.get_pm_services_offset(state),
-    #     db_manager.key_value_db.get_pm_pwd_offset(state)
-    # )
-
-    service, services_offset, pwds_offset, cache, cur_state = await db_manager.key_value_db.get_values(
-        Service.key, PasswordManagerServicesOffset.key, PasswordManagerPasswordsOffset.key, CacheUserCreated.key(query.from_user.id), "state",
-        state=state
+    service, services_offset, pwds_offset = await db_manager.key_value_db.execute_batch(
+        Service.key,
+        PasswordManagerServicesOffset.key,
+        PasswordManagerPasswordsOffset.key
     )
 
     return await query.message.edit_text(
@@ -159,11 +158,11 @@ async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPass
 async def change_service(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.ChangeService) -> Message:
     old_service, services_offset, pwds_offset = callback_data.service, callback_data.services_offset, callback_data.pwds_offset
 
-    await asyncio.gather(
-        state.set_state(PasswordManagerStates.ChangeService),
-        db_manager.key_value_db.set_service(old_service, state),
-        db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(CHANGE_SERVICE_TEXT, state)
+    await db_manager.key_value_db.execute_batch(
+        GetState(PasswordManagerStates.ChangeService, state.key),
+        Service(old_service),
+        MessageIdToDelete(query.message.message_id),
+        PasswordManagerInputFormat(CHANGE_SERVICE_TEXT)
     )
 
     return await query.message.edit_text(
@@ -176,11 +175,11 @@ async def change_service(query: CallbackQuery, state: FSMContext, callback_data:
 async def delete_service(query: CallbackQuery, state: FSMContext, callback_data: PwdMgrCb.DeleteService) -> Message:
     service_to_delete, services_offset, pwds_offset = callback_data.service, callback_data.services_offset, callback_data.pwds_offset
 
-    await asyncio.gather(
-        state.set_state(PasswordManagerStates.DeleteService),
-        db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_service(service_to_delete, state),
-        db_manager.key_value_db.set_pm_input_format_text(DELETE_SERVICE_TEXT, state)
+    await db_manager.key_value_db.execute_batch(
+        MessageIdToDelete(query.message.message_id),
+        Service(service_to_delete),
+        PasswordManagerInputFormat(DELETE_SERVICE_TEXT),
+        GetState(PasswordManagerStates.DeleteService, state.key)
     )
 
     return await query.message.edit_text(
