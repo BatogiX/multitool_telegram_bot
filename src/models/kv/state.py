@@ -1,5 +1,3 @@
-from typing import Optional
-
 from aiogram.fsm.storage.base import DefaultKeyBuilder, StorageKey
 
 
@@ -12,12 +10,5 @@ class BaseState:
 
 
 class SetState(BaseState):
-    @staticmethod
-    def batch(state_value: Optional[str]):
-        return {"data": state_value, "type": "state"}
-
-
-class GetState(BaseState):
-    @staticmethod
-    def batch():
-        return {"data": "get", "type": "state"}
+    def __new__(cls, service_name: str, storage_key: StorageKey) -> dict[str, str]:
+        return {cls.key(storage_key): service_name}

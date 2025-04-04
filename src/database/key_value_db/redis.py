@@ -1,15 +1,13 @@
-import asyncio
-import json
 import logging
-from typing import Optional, Any, Union, Literal, Callable, Awaitable
+from typing import Optional, Any, Literal, Coroutine
 
-from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import Redis, ConnectionPool
 from redis.typing import ExpiryT
 
 from database.base import AbstractKeyValueDatabase
 from config import key_value_db_cfg
+from models.kv import *
 
 type_of_kv = Literal["data", "value", "state"]
 
@@ -35,85 +33,56 @@ class RedisManager(AbstractKeyValueDatabase):
         await self.redis.close()
         logging.info("Disconnected from Redis")
 
-    async def execute_batch(self, *coroutines: Callable[..., Awaitable[Union[str, dict[str, Any]]]], storage_key: StorageKey) -> list:
-        data, commands, redis_key_data = await self._execute_pipeline(*coroutines, storage_key=storage_key)
+    async def execute_batch(self, *coroutines: Coroutine) -> tuple[Any, ...]:
+        data, commands, redis_key_data = await self._execute_pipeline(*coroutines)
         if redis_key_data:
             return await self._handle_storage_data(data, commands, redis_key_data)
-        return data
+        return tuple(data)
 
-    async def _execute_pipeline(self, *coroutines: Callable[..., Awaitable[Union[str, dict[str, Any]]]], storage_key: StorageKey):
+    async def _execute_pipeline(self, *coroutines: Coroutine):
         pipe = self.redis.pipeline()
-        commands = await asyncio.gather(*[cmd(batch_mode=True) for cmd in coroutines])
-        redis_key_data = None
-        redis_key_state = None
+        redis_key_data: str = ""
+        redis_key_state: str = ""
+        commands = [self._parse_coroutine(coro) for coro in coroutines]
 
         for cmd in commands:
-            cmd_type = cmd.get("type")
-            cmd_data = cmd.get("data")
-            match cmd_type:
-                case "data":  # set/get data (getting storage_data)
+            match cmd.type:
+                case DataAction.type:  # set/get data (getting storage_data)
                     if redis_key_data:
                         continue
-                    redis_key_data = self.key_builder.build(storage_key, "data")
+                    redis_key_data = self.key_builder.build(cmd.storage_key, "data")
                     await pipe.get(redis_key_data)
-                case "value":
-                    if isinstance(cmd_data, dict):  # set value
-                        k, v = cmd_data.popitem()
-                        if isinstance(v, tuple):
+                case ValueAction.type:
+                    if cmd.action == SetValueAction.action:   # set value
+                        k, v = cmd.data.popitem()  # noqa
+                        if isinstance(v, tuple):  # setting value with expiration
                             v, ex = v
                             await pipe.set(k, v, ex)
-                        elif v is None:
-                            await pipe.delete(k)
-                        else:
+                        else:                     # setting value without expiration
                             await pipe.set(k, v)
-                    elif isinstance(cmd_data, str):  # get value
-                        await pipe.get(cmd_data)
-                case "state":
-                    redis_key_state = self.key_builder.build(storage_key, "state") if redis_key_data is None else redis_key_state
-                    if cmd_data == "get":  # get state
+                    elif cmd.action == GetValueAction.action:  # get value
+                        await pipe.get(cmd.data)  # noqa
+                case StateAction.type:
+                    redis_key_state = self.key_builder.build(cmd.storage_key, "state") if not redis_key_data else redis_key_state
+                    if cmd.action == GetStateAction.action:  # get state
                         await pipe.get(redis_key_state)
-                    if isinstance(cmd_data, str):  # set state
-                        await pipe.set(redis_key_state, cmd_data, ex=self.c.state_ttl)
-                    elif cmd_data is None:  # delete state
+                    if cmd.action == SetStateAction.action:  # set state
+                        k, v = cmd.data.popitem()  # noqa
+                        await pipe.set(k, v, ex=self.c.state_ttl)
+                    elif cmd.data is None:  # delete state
                         await pipe.delete(redis_key_state)
         data = await pipe.execute()
         data = [d.decode() for d in data if isinstance(d, bytes)]
         return data, commands, redis_key_data
-
-    async def _handle_storage_data(self, data: list[Optional[str]], commands: list[Union[str, dict]], redis_key_data: str) -> list:
-        storage_data = {}
-        idx = 0
-        for d in data:
-            if d[0] != "{":
-                continue
-            idx = data.index(d)
-            data.pop(idx)
-            storage_data = json.loads(d)
-            break
-
-        storage_dicts = {}
-        for cmd in commands:
-            cmd_type = cmd.get("type")
-            if cmd_type != "data":
-                continue
-            cmd_data = cmd.get("data")
-            if isinstance(cmd_data, dict):
-                storage_dicts.update(cmd_data)
-                data.insert(idx, None)
-                idx += 1
-            elif isinstance(cmd_data, str):
-                data.insert(idx, storage_data.get(cmd_data, None))
-                idx += 1
-        if storage_dicts:
-            storage_data.update(storage_dicts)
-            await self._set_value(redis_key_data, json.dumps(storage_data))
-        return data
 
     async def _set_value(self, key: str, value: Any, expire: Optional[ExpiryT] = None) -> None:
         await self.redis.set(key, value, ex=expire)
 
     async def _get_value(self, key: str) -> Optional[Any]:
         return await self.redis.get(key)
+
+    async def _delete(self, key: str):
+        await self.redis.delete(key)
 
     def _create_connection_pool(self) -> ConnectionPool:
         """
