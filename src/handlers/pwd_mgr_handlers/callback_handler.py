@@ -52,7 +52,7 @@ async def create_service(query: CallbackQuery, state: FSMContext, callback_data:
     coroutines = [
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(CREATE_SERVICE_TEXT, state),
-        db_manager.key_value_db.set_state(PasswordManagerStates.CreateService, state)
+        db_manager.key_value_db.set_state(PasswordManagerStates.CreateService.state, state)
     ]
     record, _ = await asyncio.gather(
         db_manager.relational_db.get_rand_password(query.from_user.id),
@@ -75,7 +75,7 @@ async def delete_services(query: CallbackQuery, state: FSMContext, callback_data
     coroutines = [
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(DELETE_SERVICES_TEXT, state),
-        db_manager.key_value_db.set_state(PasswordManagerStates.DeleteService, state)
+        db_manager.key_value_db.set_state(PasswordManagerStates.DeleteService.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
 
@@ -93,7 +93,7 @@ async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterServi
         db_manager.key_value_db.set_service(service, state),
         db_manager.key_value_db.set_pm_pwd_offset(pwd_offset, state),
         db_manager.key_value_db.set_pm_input_format_text(ASK_MASTER_PASSWORD_TEXT, state),
-        db_manager.key_value_db.set_state(PasswordManagerStates.EnterService, state)
+        db_manager.key_value_db.set_state(PasswordManagerStates.EnterService.state, state)
     ]
     if query.message:
         coroutines.append(db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state))
@@ -122,7 +122,7 @@ async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePa
         db_manager.key_value_db.set_service(service, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(CREATE_PASSWORD_TEXT, state),
-        db_manager.key_value_db.set_state(PasswordManagerStates.CreatePassword, state)
+        db_manager.key_value_db.set_state(PasswordManagerStates.CreatePassword.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
 
@@ -158,7 +158,7 @@ async def change_service(query: CallbackQuery, state: FSMContext, callback_data:
         db_manager.key_value_db.set_service(old_service, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(CHANGE_SERVICE_TEXT, state),
-        db_manager.key_value_db.set_state(PasswordManagerStates.ChangeService, state)
+        db_manager.key_value_db.set_state(PasswordManagerStates.ChangeService.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
 
@@ -176,7 +176,7 @@ async def delete_service(query: CallbackQuery, state: FSMContext, callback_data:
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_service(service_to_delete, state),
         db_manager.key_value_db.set_pm_input_format_text(DELETE_SERVICE_TEXT, state),
-        db_manager.key_value_db.set_state(PasswordManagerStates.DeleteService, state)
+        db_manager.key_value_db.set_state(PasswordManagerStates.DeleteService.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
 
@@ -192,7 +192,7 @@ async def delete_password(query: CallbackQuery, state: FSMContext, callback_data
 
     coroutines = [
         db_manager.key_value_db.get_service(state),
-        db_manager.key_value_db.set_state(PasswordManagerStates.DeletePassword, state),
+        db_manager.key_value_db.set_state(PasswordManagerStates.DeletePassword.state, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(DELETE_PASSWORD_TEXT, state)
     ]
@@ -208,7 +208,7 @@ async def delete_password(query: CallbackQuery, state: FSMContext, callback_data
 @callback_router.callback_query(PwdMgrCb.ImportFromFile.filter())
 async def import_from_file(query: CallbackQuery, state: FSMContext) -> Message:
     coroutines = [
-        db_manager.key_value_db.set_state(PasswordManagerStates.ImportFromFile, state),
+        db_manager.key_value_db.set_state(PasswordManagerStates.ImportFromFile.state, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(IMPORT_FROM_FILE_TEXT, state)
     ]
@@ -223,7 +223,7 @@ async def import_from_file(query: CallbackQuery, state: FSMContext) -> Message:
 @callback_router.callback_query(PwdMgrCb.ExportToFile.filter())
 async def export_to_file(query: CallbackQuery, state: FSMContext) -> Message:
     coroutines = [
-        db_manager.key_value_db.set_state(PasswordManagerStates.ExportToFile, state),
+        db_manager.key_value_db.set_state(PasswordManagerStates.ExportToFile.state, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_pm_input_format_text(ASK_MASTER_PASSWORD_TEXT, state)
     ]

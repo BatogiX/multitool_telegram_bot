@@ -43,9 +43,8 @@ class BotUtils:
         await os.remove(file_path)
 
     @staticmethod
-    async def delete_fsm_message(state: FSMContext, message: types.Message) -> None:
+    async def delete_fsm_message(message_id: int, message: types.Message, ) -> None:
         """Deletes message by message_id that stores in FSM-data."""
-        message_id = await db_manager.key_value_db.get_message_id_to_delete(state)
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id)
         except TelegramBadRequest:

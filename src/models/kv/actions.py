@@ -4,23 +4,23 @@ from typing import Literal, Union
 from aiogram.fsm.storage.base import StorageKey
 
 
-class Action(ABC):
+class BaseAction(ABC):
     data: Union[dict, str]
     storage_key: StorageKey
 
-    type: Literal["data", "value", "state"]
+    type: Literal["data", "value"]
     action: Literal["set", "get", "delete"]
 
 
-class SetAction(Action):
-    def __init__(self, data: dict, storage_key: StorageKey):
+class BaseSetAction(BaseAction):
+    def __init__(self, data: dict[str, Union[str, tuple]], storage_key: StorageKey):
         self.data = data
         self.storage_key = storage_key
 
     action: Literal["set"] = "set"
 
 
-class GetAction(Action):
+class BaseGetAction(BaseAction):
     def __init__(self, data: str, storage_key: StorageKey):
         self.data = data
         self.storage_key = storage_key
@@ -28,35 +28,32 @@ class GetAction(Action):
     action: Literal["get"] = "get"
 
 
-class DeleteAction(Action):
+class BaseDeleteAction(BaseAction):
     def __init__(self, data: str, storage_key: StorageKey):
         self.data = data
         self.storage_key = storage_key
 
     action: Literal["delete"] = "delete"
 
-class DataAction(Action):
+
+class BaseDataAction(BaseAction):
     type: Literal["data"] = "data"
 
 
-class ValueAction(Action):
+class BaseValueAction(BaseAction):
     type: Literal["value"] = "value"
 
 
-class StateAction(Action):
-    type: Literal["state"] = "state"
+class SetDataAction(BaseSetAction, BaseDataAction): ...
 
 
-class UpdateDataAction(SetAction, DataAction): ...
+class GetFromDataAction(BaseGetAction, BaseDataAction): ...
 
-class GetValueFromDataAction(GetAction, DataAction): ...
 
-class SetValueAction(SetAction, ValueAction): ...
+class SetAction(BaseSetAction, BaseValueAction): ...
 
-class GetValueAction(GetAction, ValueAction): ...
 
-class SetStateAction(SetAction, StateAction): ...
+class GetAction(BaseGetAction, BaseValueAction): ...
 
-class GetStateAction(GetAction, StateAction): ...
 
-class DeleteStateAction(DeleteAction, StateAction): ...
+class DeleteAction(BaseDeleteAction, BaseValueAction): ...

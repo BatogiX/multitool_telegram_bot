@@ -7,9 +7,9 @@ from .gen_rand_pwd import gen_rand_pwd_router
 
 handlers_router = Router()
 handlers_router.include_routers(
+    start_menu_router,
     hash_menu_router,
     password_manager_router,
-    start_menu_router,
     gen_rand_pwd_router,
 )
 

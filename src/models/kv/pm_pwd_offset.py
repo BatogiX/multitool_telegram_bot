@@ -1,7 +1,9 @@
 from typing import Dict
 
+from models.kv import BaseKeyValue
 
-class PasswordManagerPasswordsOffset:
+
+class PasswordManagerPasswordsOffset(BaseKeyValue):
     key = "pm_pwd_offset"
 
     def __new__(cls, offset: int) -> Dict[str, int]:

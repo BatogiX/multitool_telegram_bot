@@ -1,5 +1,6 @@
 import asyncio
 import csv
+from collections.abc import coroutine
 from io import BytesIO
 from typing import Union
 
@@ -70,10 +71,11 @@ class PasswordManagerFsmHelper(BotUtils):
             error_message: str,
             current_state: str,
     ) -> Message:
-        input_format, _ = await asyncio.gather(
+        coroutines = [
             db_manager.key_value_db.get_pm_input_format_text(state),
-            state.set_state(current_state)
-        )
+            db_manager.key_value_db.set_state(current_state, state)
+        ]
+        input_format, _ = await db_manager.key_value_db.execute_batch(*coroutines)
         message_to_delete = await message.answer(
             text=f"{error_message}\n\n{input_format}",
             reply_markup=Keyboards.inline.return_to_services(services_offset=0)
@@ -83,11 +85,17 @@ class PasswordManagerFsmHelper(BotUtils):
 
     @staticmethod
     async def handle_message_deletion(state: FSMContext, message: Message) -> str:
-        get_task = asyncio.create_task(state.get_state())
-        asyncio.create_task(message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id))
-        asyncio.create_task(BotUtils.delete_fsm_message(state, message))
-        current_state = await get_task
-        asyncio.create_task(state.set_state())
+        coroutines = [
+            db_manager.key_value_db.get_state(state),
+            db_manager.key_value_db.get_message_id_to_delete(state),
+            db_manager.key_value_db.clear_state(state),
+        ]
+        results, _ = await asyncio.gather(
+            db_manager.key_value_db.execute_batch(*coroutines),
+            message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id),
+        )
+        current_state, message_id, _ = results
+        await BotUtils.delete_fsm_message(message_id, message)
         return current_state
 
     @classmethod
