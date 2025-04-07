@@ -1,10 +1,11 @@
-from typing import Dict
-
-from models.kv import BaseKeyValue
+from models.kv import BaseKeyValue, BaseKeyValueSet, BaseKeyValueGet
 
 
-class HashType(BaseKeyValue):
-    key = "hash_type"
+class BaseHashType(BaseKeyValue):
+    @property
+    def key(self) -> str:
+        return "hash_type"
 
-    def __new__(cls, hash_type: str) -> Dict[str, str]:
-        return {cls.key: hash_type}
+
+class SetHashType(BaseKeyValueSet, BaseHashType): ...
+class GetHashType(BaseKeyValueGet, BaseHashType): ...

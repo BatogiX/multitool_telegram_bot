@@ -1,12 +1,13 @@
-from models.kv import BaseKeyValue
+from abc import ABC
+
+from models.kv import BaseKeyValue, BaseKeyValueSet, BaseKeyValueGet
 
 
-class CacheUserCreated(BaseKeyValue):
-    @staticmethod
-    def key(user_id) -> str:
-        return f"{user_id}:user_created"
+class BaseCacheUserCreated(BaseKeyValue, ABC):
+    @property
+    def key(self) -> str:
+        return self.key_builder.build(self.storage_key, "user_created")
 
-    @classmethod
-    def create(cls, user_id: int) -> dict[str, str]:
-        key = cls.key(user_id)
-        return {key: "1"}
+
+class SetCacheUserCreated(BaseKeyValueSet, BaseCacheUserCreated): ...
+class GetCacheUserCreated(BaseKeyValueGet, BaseCacheUserCreated): ...

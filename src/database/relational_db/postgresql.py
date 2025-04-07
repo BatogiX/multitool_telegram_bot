@@ -1,12 +1,12 @@
 import logging
-from typing import Optional, cast
+from typing import Optional, cast, Any
 
 from asyncpg import Pool, Connection, Record, create_pool
 
 from database import db_manager
 from database.base import AbstractRelationDatabase
 from helpers import PasswordManagerHelper
-from config import relational_db_cfg, bot_cfg
+from config import bot_cfg, relational_db_cfg as c
 
 EncryptedRecord = PasswordManagerHelper.EncryptedRecord
 
@@ -15,34 +15,33 @@ class PostgresqlManager(AbstractRelationDatabase):
     """
     Implementation of a relational database manager for PostgreSQL.
     """
-    pool: Pool = cast(Pool, None)
-    c = relational_db_cfg
+    _pool: Pool = cast(Pool, None)
 
     async def connect(self) -> None:
         """
         Connect to PostgreSQL using DSN if available, otherwise using individual parameters.
         """
-        if self.pool is None:
-            self.pool = await create_pool(
-                dsn=self.c.url if self.c.url else None,
-                host=None if self.c.url else self.c.host,
-                port=None if self.c.url else self.c.port,
-                user=None if self.c.url else self.c.user,
-                password=None if self.c.url else self.c.password,
-                database=None if self.c.url else self.c.name,
-                min_size=self.c.min_pool_size,
-                max_size=self.c.max_pool_size,
-                max_queries=self.c.max_queries
+        if self._pool is None:
+            self._pool = await create_pool(
+                dsn=c.url if c.url else None,
+                host=None if c.url else c.host,
+                port=None if c.url else c.port,
+                user=None if c.url else c.user,
+                password=None if c.url else c.password,
+                database=None if c.url else c.name,
+                min_size=c.min_pool_size,
+                max_size=c.max_pool_size,
+                max_queries=c.max_queries
             )
-            logging.info(f"Connected to PostgreSQL via {'URL' if self.c.url else 'host/port'}")
+            logging.info(f"Connected to PostgreSQL via {'URL' if c.url else 'host/port'}")
             await self._init_db()
 
     async def close(self) -> None:
-        await self.pool.close()
+        await self._pool.close()
         logging.info("Disconnected from PostgreSQL")
 
     async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
-        if await db_manager.key_value_db.get_cache_user_created(user_id):
+        if await db_manager.key_value_db.get_cache_user_created(user_id, state):
             return
 
         await self._execute(
@@ -53,7 +52,7 @@ class PostgresqlManager(AbstractRelationDatabase):
             """,
             user_id, user_name, full_name
         )
-        await db_manager.key_value_db.set_cache_user_created(user_id)
+        await db_manager.key_value_db.set_cache_user_created(state)
 
     async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         records = await self._fetch_all(
@@ -152,22 +151,22 @@ class PostgresqlManager(AbstractRelationDatabase):
         return [record.get("service") for record in records]
 
     async def _execute(self, query: str, *args) -> None:
-        async with self.pool.acquire() as con:
+        async with self._pool.acquire() as con:
             con: Connection
             await con.execute(query, *args)
 
     async def _fetch_row(self, query: str, *args) -> Optional[Record]:
-        async with self.pool.acquire() as con:
+        async with self._pool.acquire() as con:
             con: Connection
             return await con.fetchrow(query, *args)
 
-    async def _fetch_value(self, query: str, *args) -> any:
-        async with self.pool.acquire() as con:
+    async def _fetch_value(self, query: str, *args) -> Any:
+        async with self._pool.acquire() as con:
             con: Connection
             return await con.fetchval(query, *args)
 
     async def _fetch_all(self, query: str, *args) -> Optional[list[Record]]:
-        async with self.pool.acquire() as con:
+        async with self._pool.acquire() as con:
             con: Connection
             return await con.fetch(query, *args)
 

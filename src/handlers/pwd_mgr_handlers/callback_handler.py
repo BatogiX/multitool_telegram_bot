@@ -28,7 +28,7 @@ async def enter_services(query: CallbackQuery, state: FSMContext, callback_data:
     services_offset = callback_data.services_offset
 
     coroutines = [
-        db_manager.key_value_db.set_pm_services_offset(services_offset, state),
+        db_manager.key_value_db.set_services_offset(services_offset, state),
         db_manager.key_value_db.clear_state(state)
     ]
     services, _ = await asyncio.gather(
@@ -51,7 +51,7 @@ async def create_service(query: CallbackQuery, state: FSMContext, callback_data:
 
     coroutines = [
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(CREATE_SERVICE_TEXT, state),
+        db_manager.key_value_db.set_input_format_text(CREATE_SERVICE_TEXT, state),
         db_manager.key_value_db.set_state(PasswordManagerStates.CreateService.state, state)
     ]
     record, _ = await asyncio.gather(
@@ -74,7 +74,7 @@ async def delete_services(query: CallbackQuery, state: FSMContext, callback_data
 
     coroutines = [
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(DELETE_SERVICES_TEXT, state),
+        db_manager.key_value_db.set_input_format_text(DELETE_SERVICES_TEXT, state),
         db_manager.key_value_db.set_state(PasswordManagerStates.DeleteService.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
@@ -91,8 +91,8 @@ async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterServi
 
     coroutines = [
         db_manager.key_value_db.set_service(service, state),
-        db_manager.key_value_db.set_pm_pwd_offset(pwd_offset, state),
-        db_manager.key_value_db.set_pm_input_format_text(ASK_MASTER_PASSWORD_TEXT, state),
+        db_manager.key_value_db.set_pwds_offset(pwd_offset, state),
+        db_manager.key_value_db.set_input_format_text(ASK_MASTER_PASSWORD_TEXT, state),
         db_manager.key_value_db.set_state(PasswordManagerStates.EnterService.state, state)
     ]
     if query.message:
@@ -121,7 +121,7 @@ async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePa
     coroutines = [
         db_manager.key_value_db.set_service(service, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(CREATE_PASSWORD_TEXT, state),
+        db_manager.key_value_db.set_input_format_text(CREATE_PASSWORD_TEXT, state),
         db_manager.key_value_db.set_state(PasswordManagerStates.CreatePassword.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
@@ -138,8 +138,8 @@ async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPass
 
     coroutines = [
         db_manager.key_value_db.get_service(state),
-        db_manager.key_value_db.get_pm_services_offset(state),
-        db_manager.key_value_db.get_pm_pwd_offset(state)
+        db_manager.key_value_db.get_services_offset(state),
+        db_manager.key_value_db.get_pwds_offset(state)
     ]
     service, services_offset, pwds_offset = await db_manager.key_value_db.execute_batch(*coroutines)
 
@@ -157,7 +157,7 @@ async def change_service(query: CallbackQuery, state: FSMContext, callback_data:
     coroutines = [
         db_manager.key_value_db.set_service(old_service, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(CHANGE_SERVICE_TEXT, state),
+        db_manager.key_value_db.set_input_format_text(CHANGE_SERVICE_TEXT, state),
         db_manager.key_value_db.set_state(PasswordManagerStates.ChangeService.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
@@ -175,7 +175,7 @@ async def delete_service(query: CallbackQuery, state: FSMContext, callback_data:
     coroutines = [
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
         db_manager.key_value_db.set_service(service_to_delete, state),
-        db_manager.key_value_db.set_pm_input_format_text(DELETE_SERVICE_TEXT, state),
+        db_manager.key_value_db.set_input_format_text(DELETE_SERVICE_TEXT, state),
         db_manager.key_value_db.set_state(PasswordManagerStates.DeleteService.state, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
@@ -194,7 +194,7 @@ async def delete_password(query: CallbackQuery, state: FSMContext, callback_data
         db_manager.key_value_db.get_service(state),
         db_manager.key_value_db.set_state(PasswordManagerStates.DeletePassword.state, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(DELETE_PASSWORD_TEXT, state)
+        db_manager.key_value_db.set_input_format_text(DELETE_PASSWORD_TEXT, state)
     ]
     service, _, _, _ = await db_manager.key_value_db.execute_batch(*coroutines)
 
@@ -210,7 +210,7 @@ async def import_from_file(query: CallbackQuery, state: FSMContext) -> Message:
     coroutines = [
         db_manager.key_value_db.set_state(PasswordManagerStates.ImportFromFile.state, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(IMPORT_FROM_FILE_TEXT, state)
+        db_manager.key_value_db.set_input_format_text(IMPORT_FROM_FILE_TEXT, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
 
@@ -225,7 +225,7 @@ async def export_to_file(query: CallbackQuery, state: FSMContext) -> Message:
     coroutines = [
         db_manager.key_value_db.set_state(PasswordManagerStates.ExportToFile.state, state),
         db_manager.key_value_db.set_message_id_to_delete(query.message.message_id, state),
-        db_manager.key_value_db.set_pm_input_format_text(ASK_MASTER_PASSWORD_TEXT, state)
+        db_manager.key_value_db.set_input_format_text(ASK_MASTER_PASSWORD_TEXT, state)
     ]
     await db_manager.key_value_db.execute_batch(*coroutines)
 

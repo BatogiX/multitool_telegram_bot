@@ -1,10 +1,10 @@
-from typing import Dict
-
-from models.kv import BaseKeyValue
+from models.kv import BaseKeyValue, BaseKeyValueSet, BaseKeyValueGet
 
 
-class MessageIdToDelete(BaseKeyValue):
-    key = "message_id_to_delete"
+class BaseMessageIdToDelete(BaseKeyValue):
+    @property
+    def key(self) -> str:
+        return "message_id_to_delete"
 
-    def __new__(cls, message_id: int) -> Dict[str, int]:
-        return {cls.key: message_id}
+class SetMessageIdToDelete(BaseKeyValueSet, BaseMessageIdToDelete): ...
+class GetMessageIdToDelete(BaseKeyValueGet, BaseMessageIdToDelete): ...

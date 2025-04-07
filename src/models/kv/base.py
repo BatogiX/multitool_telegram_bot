@@ -1,12 +1,28 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Optional, Union
+
+from aiogram.fsm.storage.base import StorageKey, DefaultKeyBuilder
 
 
 class BaseKeyValue(ABC):
-    @staticmethod
-    @abstractmethod
-    def key(*args, **kwargs) -> str: ...
+    key_builder = DefaultKeyBuilder()
 
-    @classmethod
+    def __init__(self, storage_key: StorageKey):
+        self.storage_key = storage_key
+
+    @property
     @abstractmethod
-    def create(cls, *args, **kwargs) -> dict[str, Any]: ...
+    def key(self) -> str: ...
+
+
+class BaseKeyValueGet(BaseKeyValue, ABC): ...
+
+
+class BaseKeyValueSet(BaseKeyValue, ABC):
+    def __init__(self, storage_key: StorageKey, value: Union[str, int], expire: Optional[int] = None):
+        super().__init__(storage_key)
+        self.value = value
+        self.expire = expire
+
+    def create(self) -> dict:
+        return {self.key: self.value}

@@ -28,8 +28,8 @@ class PasswordManagerFsmHelper(BotUtils):
     @staticmethod
     async def show_service_logins(message: Message, state: FSMContext, master_password: str, service: str) -> tuple[list[DecryptedRecord], int, int]:
         pwd_offset, services_offset = await asyncio.gather(
-            db_manager.key_value_db.get_pm_pwd_offset(state),
-            db_manager.key_value_db.get_pm_services_offset(state),
+            db_manager.key_value_db.get_pwds_offset(state),
+            db_manager.key_value_db.get_services_offset(state),
         )
         encrypted_records = await db_manager.relational_db.get_passwords(
             user_id=message.from_user.id,
@@ -72,7 +72,7 @@ class PasswordManagerFsmHelper(BotUtils):
             current_state: str,
     ) -> Message:
         coroutines = [
-            db_manager.key_value_db.get_pm_input_format_text(state),
+            db_manager.key_value_db.get_input_format_text(state),
             db_manager.key_value_db.set_state(current_state, state)
         ]
         input_format, _ = await db_manager.key_value_db.execute_batch(*coroutines)

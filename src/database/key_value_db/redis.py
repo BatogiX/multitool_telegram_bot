@@ -1,9 +1,8 @@
 import logging
-from typing import Optional, Any, Literal, Coroutine
+from typing import Optional, Any, Literal, Coroutine, Union
 
 from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import Redis, ConnectionPool
-from redis.typing import ExpiryT
 
 from database.base import AbstractKeyValueDatabase
 from config import key_value_db_cfg
@@ -41,42 +40,43 @@ class RedisManager(AbstractKeyValueDatabase):
 
     async def _execute_pipeline(self, *coroutines: Coroutine):
         pipe = self.redis.pipeline()
-        redis_key_data: str = ""
-        commands = [self._parse_coroutine(coro) for coro in coroutines]
+        storage_data_key: str = ""
+        actions = [self._parse_coroutine(coro) for coro in coroutines]
 
-        for cmd in commands:
-            if cmd.type == BaseDataAction.type:                    # set/get data (getting storage_data)
-                if redis_key_data:
+        for action in actions:
+            if action.type == BaseDataAction.type:          # set/get data (getting storage_data)
+                if storage_data_key:
                     continue
-                redis_key_data = self.key_builder.build(cmd.storage_key, "data")
-                await pipe.get(redis_key_data)
-            elif cmd.type == BaseValueAction.type:
-                if cmd.action == SetAction.action:       # set value
-                    k, v = cmd.data.popitem()                 # noqa
-                    if isinstance(v, tuple):                  # setting value with expiration
-                        v, ex = v
-                        await pipe.set(k, v, ex)
-                    else:                                     # setting value without expiration
-                        await pipe.set(k, v)
-                elif cmd.action == GetAction.action:     # get value
-                    await pipe.get(cmd.data)                  # noqa
-                elif cmd.action == DeleteAction.action:  # delete state
-                    await pipe.delete(cmd.data)
+                action: Union[SetDataAction, GetFromDataAction]
+                storage_data_key = action.data.key
+                await pipe.get(storage_data_key)
+            elif action.type == BaseValueAction.type:
+                if action.action == SetAction.action:       # set
+                    action: SetAction
+                    await pipe.set(action.data.key, action.data.value, action.data.expire)
+
+                elif action.action == GetAction.action:     # get
+                    action: GetAction
+                    await pipe.get(action.data.key)
+
+                elif action.action == DeleteAction.action:  # delete
+                    action: DeleteAction
+                    await pipe.delete(action.data.key)
 
         data = await pipe.execute()
         for idx, item in enumerate(data):
             if isinstance(item, bytes):
                 data[idx] = item.decode()
-        return data, commands, redis_key_data
+        return data, actions, storage_data_key
 
-    async def _set(self, key: str, value: Any, expire: Optional[ExpiryT] = None) -> None:
-        await self.redis.set(key, value, ex=expire)
+    async def _set(self, obj: BaseKeyValueSet) -> None:
+        await self.redis.set(name=obj.key, value=obj.value, ex=obj.expire)
 
-    async def _get(self, key: str) -> Optional[Any]:
-        return await self.redis.get(key)
+    async def _get(self, obj: BaseKeyValueGet) -> Optional[Any]:
+        return await self.redis.get(obj.key)
 
-    async def _delete(self, key: str):
-        await self.redis.delete(key)
+    async def _delete(self, obj: BaseKeyValueGet):
+        await self.redis.delete(obj.key)
 
     def _create_connection_pool(self) -> ConnectionPool:
         """

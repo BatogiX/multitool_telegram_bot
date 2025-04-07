@@ -1,59 +1,54 @@
 from abc import ABC
-from typing import Literal, Union
+from typing import Literal
 
-from aiogram.fsm.storage.base import StorageKey
+from models.kv import BaseKeyValueSet, BaseKeyValueGet, SetData, GetData
 
 
 class BaseAction(ABC):
-    data: Union[dict, str]
-    storage_key: StorageKey
-
     type: Literal["data", "value"]
     action: Literal["set", "get", "delete"]
 
 
-class BaseSetAction(BaseAction):
-    def __init__(self, data: dict[str, Union[str, tuple]], storage_key: StorageKey):
-        self.data = data
-        self.storage_key = storage_key
-
-    action: Literal["set"] = "set"
-
-
-class BaseGetAction(BaseAction):
-    def __init__(self, data: str, storage_key: StorageKey):
-        self.data = data
-        self.storage_key = storage_key
-
+class BaseGetAction(BaseAction, ABC):
     action: Literal["get"] = "get"
 
 
-class BaseDeleteAction(BaseAction):
-    def __init__(self, data: str, storage_key: StorageKey):
-        self.data = data
-        self.storage_key = storage_key
+class BaseSetAction(BaseAction, ABC):
+    action: Literal["set"] = "set"
 
+
+class BaseDeleteAction(BaseAction, ABC):
     action: Literal["delete"] = "delete"
 
 
-class BaseDataAction(BaseAction):
+class BaseDataAction(BaseAction, ABC):
     type: Literal["data"] = "data"
 
 
-class BaseValueAction(BaseAction):
+class BaseValueAction(BaseAction, ABC):
     type: Literal["value"] = "value"
 
 
-class SetDataAction(BaseSetAction, BaseDataAction): ...
+class SetDataAction(BaseSetAction, BaseDataAction):
+    def __init__(self, data: SetData):
+        self.data = data
 
 
-class GetFromDataAction(BaseGetAction, BaseDataAction): ...
+class GetFromDataAction(BaseGetAction, BaseDataAction):
+    def __init__(self, data: GetData):
+        self.data = data
 
 
-class SetAction(BaseSetAction, BaseValueAction): ...
+class SetAction(BaseSetAction, BaseValueAction):
+    def __init__(self, data: BaseKeyValueSet):
+        self.data = data
 
 
-class GetAction(BaseGetAction, BaseValueAction): ...
+class GetAction(BaseGetAction, BaseValueAction):
+    def __init__(self, data: BaseKeyValueGet):
+        self.data = data
 
 
-class DeleteAction(BaseDeleteAction, BaseValueAction): ...
+class DeleteAction(BaseDeleteAction, BaseValueAction):
+    def __init__(self, data: BaseKeyValueGet):
+        self.data = data
