@@ -1,4 +1,4 @@
-from models.kv import BaseKeyValue, BaseKeyValueSet, BaseKeyValueGet
+from models.kv.base import BaseKeyValueGet, BaseKeyValue, BaseKeyValueSet
 
 
 class BaseService(BaseKeyValue):

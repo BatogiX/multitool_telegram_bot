@@ -1,4 +1,4 @@
-from utils import BotUtils
+from utils import add_protocol, escape_markdown_v2
 
 SERVICE_TEXT = "*Service*: "
 
@@ -33,8 +33,8 @@ def gen_services_text(services_offset: int) -> str:
 
 
 def gen_credentials(service: str, login: str, password: str) -> str:
-    service = BotUtils.add_protocol(service)
-    service = BotUtils.escape_markdown_v2(service)
+    service = add_protocol(service)
+    service = escape_markdown_v2(service)
     return (
         SERVICE_TEXT + service +
         LOGIN_TEXT + f"`{login}`" +
@@ -51,7 +51,7 @@ SERVICE_DELETED_TEXT = "Service was deleted successfully\n\n"
 
 
 def gen_passwords_text(service: str, pwds_offset: int) -> str:
-    service = BotUtils.add_protocol(service)
+    service = add_protocol(service)
     return (
         SERVICE_TEXT + service +
         "\n\nChoose your login to see password" +

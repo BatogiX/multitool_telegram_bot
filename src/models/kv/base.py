@@ -19,10 +19,10 @@ class BaseKeyValueGet(BaseKeyValue, ABC): ...
 
 
 class BaseKeyValueSet(BaseKeyValue, ABC):
-    def __init__(self, storage_key: StorageKey, value: Union[str, int], expire: Optional[int] = None):
+    def __init__(self, storage_key: StorageKey, value: Union[str, int], expire: Optional[int]):
         super().__init__(storage_key)
         self.value = value
         self.expire = expire
 
-    def create(self) -> dict:
+    def dict(self) -> dict:
         return {self.key: self.value}

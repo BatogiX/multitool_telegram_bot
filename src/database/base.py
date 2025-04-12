@@ -5,14 +5,16 @@ from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING, Any, Union, Coroutine, Type
 
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.base import BaseStorage
+from aiogram.fsm.storage.base import BaseStorage, StorageKey
 
+
+from models.actions import BaseAction, SetDataAction, SetAction, GetFromDataAction, GetAction, DeleteAction
 from models.kv import *
 from config import bot_cfg, key_value_db_cfg
+from models.kv.base import BaseKeyValueSet, BaseKeyValueGet
 
 if TYPE_CHECKING:
-    from helpers import PasswordManagerHelper
-    EncryptedRecord = PasswordManagerHelper.EncryptedRecord
+    from helpers.pwd_mgr_helper import EncryptedRecord
 
 
 class AbstractDatabase(ABC):
@@ -53,40 +55,31 @@ class AbstractKeyValueDatabase(AbstractDatabase):
     @abstractmethod
     async def execute_batch(self, *coroutines: Coroutine) -> tuple[Any, ...]: ...
 
-    async def _set_data(self, obj: BaseKeyValueSet) -> None:
-        current_data = await self._get_data(obj)
-        current_data.update(obj.create())
-        await self._set(SetData(obj.storage_key, json.dumps(current_data)))
+    async def set_state(self, state_value: str, state: FSMContext, expire: Optional[int] = state_ttl) -> None:
+        await self._set(SetState(state.key, state_value, expire))
 
-    async def _get_from_data(self, obj: BaseKeyValueGet) -> Optional[Any]:
-        current_data = await self._get_data(obj)
-        return current_data.get(obj.key, None)
+    async def set_message_id_to_delete(self, msg_id: int, state: FSMContext, expire: Optional[int] = data_ttl) -> None:
+        await self._set_data(SetMessageIdToDelete(state.key, msg_id, expire))
 
-    async def set_state(self, state_value: str, state: FSMContext) -> None:
-        await self._set(SetState(state.key, state_value))
+    async def set_service(self, service_name: str, state: FSMContext, expire: Optional[int] = data_ttl) -> None:
+        await self._set_data(SetService(state.key, service_name, expire))
 
-    async def set_message_id_to_delete(self, msg_id: int, state: FSMContext) -> None:
-        await self._set_data(SetMessageIdToDelete(state.key, msg_id))
+    async def set_hash_type(self, hash_type: str, state: FSMContext, expire: Optional[int] = data_ttl) -> None:
+        await self._set_data(SetHashType(state.key, hash_type, expire))
 
-    async def set_service(self, service_name: str, state: FSMContext) -> None:
-        await self._set_data(SetService(state.key, service_name))
+    async def set_input_format_text(self, text: str, state: FSMContext, expire: Optional[int] = data_ttl) -> None:
+        await self._set_data(SetInputFormat(state.key, text, expire))
 
-    async def set_hash_type(self, hash_type: str, state: FSMContext) -> None:
-        await self._set_data(SetHashType(state.key, hash_type))
+    async def set_pwds_offset(self, offset: int, state: FSMContext, expire: Optional[int] = data_ttl) -> None:
+        await self._set_data(SetPasswordsOffset(state.key, offset, expire))
 
-    async def set_input_format_text(self, text: str, state: FSMContext) -> None:
-        await self._set_data(SetInputFormat(state.key, text))
+    async def set_services_offset(self, offset: int, state: FSMContext, expire: Optional[int] = data_ttl) -> None:
+        await self._set_data(SetServicesOffset(state.key, offset, expire))
 
-    async def set_pwds_offset(self, offset: int, state: FSMContext) -> None:
-        await self._set_data(SetPasswordsOffset(state.key, offset))
+    async def set_cache_user_created(self, state: FSMContext, expire: Optional[int] = 86400) -> None:
+        await self._set(SetCacheUserCreated(state.key, "1", expire))
 
-    async def set_services_offset(self, offset: int, state: FSMContext) -> None:
-        await self._set_data(SetServicesOffset(state.key, offset))
-
-    async def set_cache_user_created(self, state: FSMContext) -> None:
-        await self._set(SetCacheUserCreated(state.key, "1", expire=86400))
-
-    async def get_state(self, state: FSMContext):
+    async def get_state(self, state: FSMContext) -> Optional[str]:
         await self._get(GetState(state.key))
 
     async def get_message_id_to_delete(self, state: FSMContext) -> Union[int]:
@@ -119,74 +112,81 @@ class AbstractKeyValueDatabase(AbstractDatabase):
             return {}
         return json.loads(current_data)
 
+    async def _set_data(self, obj: BaseKeyValueSet) -> None:
+        current_data = await self._get_data(obj)
+        current_data.update(obj.dict())
+        await self._set(SetData(obj.storage_key, json.dumps(current_data)))
+
+    async def _get_from_data(self, obj: BaseKeyValueGet) -> Optional[Any]:
+        current_data = await self._get_data(obj)
+        return current_data.get(obj.key, None)
+
     def _parse_coroutine(self, coro: Coroutine) -> BaseAction:
-        fsm_context, value = self._parse_args(coro)
+        state, value, expire = self._parse_args(coro)
         method = coro.cr_code.co_names[0]
         cls_name = coro.cr_code.co_names[1]
-        coro.close()
         cls = globals()[cls_name]
+        coro.close()
 
         if method == self._set_data.__name__:
-            cls: Type[SetData]
-            return SetDataAction(cls(fsm_context.key, value))
+            cls: Type[BaseKeyValueSet]
+            return SetDataAction(data=cls(state.key, value, expire=expire))
 
         elif method == self._set.__name__:
             cls: Type[BaseKeyValueSet]
-            return SetAction(cls(fsm_context.key, value, expire=ex))
+            return SetAction(data=cls(state.key, value, expire=expire))
 
         elif method == self._get_from_data.__name__:
-            cls: Type[GetData]
-            return GetFromDataAction(cls(fsm_context.key))
+            cls: Type[BaseKeyValueGet]
+            return GetFromDataAction(data=cls(state.key))
 
         elif method == self._get.__name__:
             cls: Type[BaseKeyValueGet]
-            return GetAction(cls(fsm_context.key))
+            return GetAction(data=cls(state.key))
 
         elif method == self._delete.__name__:
             cls: Type[BaseKeyValueGet]
-            return DeleteAction(cls(fsm_context.key))
+            return DeleteAction(data=cls(state.key))
 
         else:
             raise Exception(f"Unknown method {method}")
 
     @staticmethod
-    def _parse_args(coro: Coroutine) -> tuple[FSMContext, Optional[str | int]]:
-        state, value = None, None
-        for k, v in coro.cr_frame.f_locals.items():  # parsing arguments to find value for set/update commands
-            if k == "self" :
-                continue
-            elif k == "state":
-                state = v
-            else:
-                value = v
-        return state, value
+    def _parse_args(coro: Coroutine) -> tuple[FSMContext, Optional[str | int], Optional[int]]:
+        state, value, expire = None, None, None
+        for k, v in coro.cr_frame.f_locals.items():  # parsing arguments to find value for set actions
+            if k == "self": continue
+            elif k == "state": state = v
+            elif k == "expire": expire = v
+            else: value = v
+        return state, value, expire
 
-    async def _handle_storage_data(self, data: list[Optional[str]], commands: list[BaseAction], built_storage_key: str) -> tuple[Any, ...]:
-        storage_data = {}
+    async def _handle_storage_data(self, data: list[Optional[str]], actions: list[Union[SetDataAction, GetFromDataAction]], storage_key: StorageKey) -> tuple[Any, ...]:
+        current_data = {}
         idx = 0
-        for d in data:
-            if d[0] != "{":
+        for i, item in enumerate(data):
+            if item[0] != "{":
                 continue
-            idx = data.index(d)
+            idx = i
             data.pop(idx)
-            storage_data = json.loads(d)
+            current_data = json.loads(item)
             break
 
         storage_dicts = {}
-        for cmd in commands:
-            if cmd.type != "data":
-                continue
-            if isinstance(cmd.data, dict):
-                storage_dicts.update(cmd.data)
-                data.insert(idx, None)
+        for action in actions:
+            if action.action == SetAction.action:
+                action: SetDataAction
+                storage_dicts.update(action.data.dict())
+                data.insert(idx, "True")
                 idx += 1
-            elif isinstance(cmd.data, str):
-                data.insert(idx, storage_data.get(cmd.data, None))
+            elif action.action == GetAction.action:
+                action: GetFromDataAction
+                data.insert(idx, current_data.get(action.data.key, None))
                 idx += 1
 
         if storage_dicts:
-            storage_data.update(storage_dicts)
-            await self._set(built_storage_key, json.dumps(storage_data))
+            current_data.update(storage_dicts)
+            await self._set(SetData(storage_key, json.dumps(current_data)))
         return tuple(data)
 
 
@@ -194,7 +194,7 @@ class AbstractRelationDatabase(AbstractDatabase):
     """Abstract class for relational databases."""
 
     @abstractmethod
-    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
+    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str, state: FSMContext) -> None:
         """Create a new user in the database."""
 
     @abstractmethod

@@ -1,8 +1,3 @@
-from typing import Union
-
-from aiogram.fsm.storage.base import StorageKey
-
-from config import key_value_db_cfg
 from models.kv.base import BaseKeyValueGet, BaseKeyValue, BaseKeyValueSet
 
 
@@ -12,9 +7,5 @@ class BaseState(BaseKeyValue):
         return self.key_builder.build(self.storage_key, "state")
 
 
-class SetState(BaseKeyValueSet, BaseState):
-    def __init__(self, storage_key: StorageKey, value: Union[str, int]):
-        super().__init__(storage_key, value, key_value_db_cfg.state_ttl)
-
-
+class SetState(BaseKeyValueSet, BaseState): ...
 class GetState(BaseKeyValueGet, BaseState): ...

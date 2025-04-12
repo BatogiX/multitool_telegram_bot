@@ -2,16 +2,16 @@ from aiogram import Router, F
 from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 
 from database import db_manager
-from config import bot_cfg
-from keyboards import Keyboards
-from utils import InlineKeyboardsUtils as KbUtils, BotUtils
+from helpers.keyboard_helper.pwd_mgr_kb import inline_query_search_service
+from keyboards.inline import pwd_mgr_inline_search
+from utils import add_protocol
 
 inline_query_router = Router(name=__name__)
 
 
-@inline_query_router.inline_query(F.query.startswith(KbUtils.inline_query_search_service))
+@inline_query_router.inline_query(F.query.startswith(inline_query_search_service))
 async def search(inline_query: InlineQuery):
-    search_text = inline_query.query.replace(f"{KbUtils.inline_query_search_service}", "")
+    search_text = inline_query.query.replace(f"{inline_query_search_service}", "")
 
     if not search_text:
         print(search_text)
@@ -22,8 +22,8 @@ async def search(inline_query: InlineQuery):
         InlineQueryResultArticle(
             id=service,
             title=service,
-            input_message_content=InputTextMessageContent(message_text=f"🔎 {BotUtils.add_protocol(service)}"),
-            reply_markup=Keyboards.inline.pwd_mgr_inline_search(service)
+            input_message_content=InputTextMessageContent(message_text=f"🔎 {add_protocol(service)}"),
+            reply_markup=pwd_mgr_inline_search(service)
         ) for service in services
     ]
 

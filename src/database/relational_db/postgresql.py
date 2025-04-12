@@ -1,14 +1,15 @@
+import asyncio
 import logging
+import os
 from typing import Optional, cast, Any
 
+from aiogram.fsm.context import FSMContext
 from asyncpg import Pool, Connection, Record, create_pool
 
 from database import db_manager
 from database.base import AbstractRelationDatabase
-from helpers import PasswordManagerHelper
 from config import bot_cfg, relational_db_cfg as c
-
-EncryptedRecord = PasswordManagerHelper.EncryptedRecord
+from helpers.pwd_mgr_helper import EncryptedRecord
 
 
 class PostgresqlManager(AbstractRelationDatabase):
@@ -40,19 +41,20 @@ class PostgresqlManager(AbstractRelationDatabase):
         await self._pool.close()
         logging.info("Disconnected from PostgreSQL")
 
-    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str) -> None:
-        if await db_manager.key_value_db.get_cache_user_created(user_id, state):
+    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str, state: FSMContext) -> None:
+        if await db_manager.key_value_db.get_cache_user_created(state):
             return
 
-        await self._execute(
+        execute = self._execute(
             """
-            INSERT INTO public.users (user_id, user_name, full_name)
-            VALUES ($1, $2, $3)
+            INSERT INTO public.users (user_id, user_name, full_name, salt)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (user_id) DO NOTHING
             """,
-            user_id, user_name, full_name
+            user_id, user_name, full_name, os.urandom(16).hex()
         )
-        await db_manager.key_value_db.set_cache_user_created(state)
+        set_cache = db_manager.key_value_db.set_cache_user_created(state)
+        await asyncio.gather(execute, set_cache)
 
     async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         records = await self._fetch_all(
@@ -178,7 +180,8 @@ class PostgresqlManager(AbstractRelationDatabase):
                 user_id bigint NOT NULL PRIMARY KEY,
                 user_name TEXT,
                 created_at TIMESTAMP NOT NULL DEFAULT now(),
-                full_name TEXT NOT NULL
+                full_name TEXT NOT NULL,
+                salt TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS public.passwords

@@ -1,7 +1,1 @@
-from .hash_menu_fsm import HashMenuFsmHelper
-
-
-class HashMenuHelper(HashMenuFsmHelper): ...
-
-
-__all__ = "HashMenuHelper"
+from .hash_menu_fsm import check_hash, get_state_by_hash_type

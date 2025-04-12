@@ -1,12 +1,14 @@
 import logging
 from typing import Optional, Any, Literal, Coroutine, Union
 
+from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import Redis, ConnectionPool
 
 from database.base import AbstractKeyValueDatabase
 from config import key_value_db_cfg
-from models.kv import *
+from models.actions import SetDataAction, SetAction, GetFromDataAction, GetAction, DeleteAction, BaseDataAction, BaseValueAction
+from models.kv.base import BaseKeyValueSet, BaseKeyValueGet
 
 type_of_kv = Literal["data", "value", "state"]
 
@@ -33,41 +35,43 @@ class RedisManager(AbstractKeyValueDatabase):
         logging.info("Disconnected from Redis")
 
     async def execute_batch(self, *coroutines: Coroutine) -> tuple[Any, ...]:
-        data, commands, redis_key_data = await self._execute_pipeline(*coroutines)
-        if redis_key_data:
-            return await self._handle_storage_data(data, commands, redis_key_data)
+        data, commands, storage_key = await self._execute_pipeline(*coroutines)
+        if storage_key:
+            return await self._handle_storage_data(data, commands, storage_key)
         return tuple(data)
 
-    async def _execute_pipeline(self, *coroutines: Coroutine):
+    async def _execute_pipeline(self, *coroutines: Coroutine) -> tuple[Optional[list], list[Union[SetDataAction, GetFromDataAction]], Optional[StorageKey]]:
         pipe = self.redis.pipeline()
-        storage_data_key: str = ""
+        storage_key: Optional[StorageKey] = None
         actions = [self._parse_coroutine(coro) for coro in coroutines]
 
         for action in actions:
             if action.type == BaseDataAction.type:          # set/get data (getting storage_data)
-                if storage_data_key:
+                if storage_key:
                     continue
                 action: Union[SetDataAction, GetFromDataAction]
-                storage_data_key = action.data.key
-                await pipe.get(storage_data_key)
+                storage_key = action.data.storage_key
+                pipe = pipe.get(action.data.key_builder.build(storage_key, "data"))
             elif action.type == BaseValueAction.type:
                 if action.action == SetAction.action:       # set
                     action: SetAction
-                    await pipe.set(action.data.key, action.data.value, action.data.expire)
+                    pipe = pipe.set(action.data.key, action.data.value, action.data.expire)
 
                 elif action.action == GetAction.action:     # get
                     action: GetAction
-                    await pipe.get(action.data.key)
+                    pipe = pipe.get(action.data.key)
 
                 elif action.action == DeleteAction.action:  # delete
                     action: DeleteAction
-                    await pipe.delete(action.data.key)
+                    pipe = pipe.delete(action.data.key)
 
         data = await pipe.execute()
         for idx, item in enumerate(data):
             if isinstance(item, bytes):
                 data[idx] = item.decode()
-        return data, actions, storage_data_key
+
+        actions = [action for action in actions if action.type == BaseDataAction.type]
+        return data, actions, storage_key
 
     async def _set(self, obj: BaseKeyValueSet) -> None:
         await self.redis.set(name=obj.key, value=obj.value, ex=obj.expire)

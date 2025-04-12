@@ -1,9 +1,7 @@
-from abc import ABC
-
-from models.kv import BaseKeyValue, BaseKeyValueSet, BaseKeyValueGet
+from models.kv.base import BaseKeyValueGet, BaseKeyValue, BaseKeyValueSet
 
 
-class BaseCacheUserCreated(BaseKeyValue, ABC):
+class BaseCacheUserCreated(BaseKeyValue):
     @property
     def key(self) -> str:
         return self.key_builder.build(self.storage_key, "user_created")

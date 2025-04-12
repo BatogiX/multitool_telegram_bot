@@ -1,3 +1,1 @@
-from .gen_rand_pwd_cb import GenerateRandomPasswordHelper
-
-__all__ = "GeneratePasswordHelper"
+from .gen_rand_pwd_cb import generate_password

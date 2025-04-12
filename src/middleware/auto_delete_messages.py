@@ -62,4 +62,4 @@ class AutoDeleteMessagesMiddleware(BaseMiddleware):
                 await message.bot.delete_message(chat_id, message_id)
             except Exception as e:
                 logging.error(f"Failed to delete message {message_id} in chat {chat_id}: {e}")
-        self.tasks.pop(chat_id, None)   # noqa
+        self.tasks.pop(chat_id)
