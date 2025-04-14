@@ -9,7 +9,9 @@ from aiogram.fsm.storage.base import BaseStorage, StorageKey
 
 
 from models.actions import BaseAction, SetDataAction, SetAction, GetFromDataAction, GetAction, DeleteAction
-from models.kv import *
+from models.kv import SetState, SetMessageIdToDelete, SetService, SetHashType, SetInputFormat, SetPasswordsOffset, \
+    SetServicesOffset, SetCacheUserCreated, GetState, GetMessageIdToDelete, GetService, GetInputFormat, GetHashType, \
+    GetPasswordsOffset, GetServicesOffset, GetCacheUserCreated, SetData
 from config import bot_cfg, key_value_db_cfg
 from models.kv.base import BaseKeyValueSet, BaseKeyValueGet
 
@@ -155,10 +157,14 @@ class AbstractKeyValueDatabase(AbstractDatabase):
     def _parse_args(coro: Coroutine) -> tuple[FSMContext, Optional[str | int], Optional[int]]:
         state, value, expire = None, None, None
         for k, v in coro.cr_frame.f_locals.items():  # parsing arguments to find value for set actions
-            if k == "self": continue
-            elif k == "state": state = v
-            elif k == "expire": expire = v
-            else: value = v
+            if k == "self":
+                continue
+            elif k == "state":
+                state = v
+            elif k == "expire":
+                expire = v
+            else:
+                value = v
         return state, value, expire
 
     async def _handle_storage_data(self, data: list[Optional[str]], actions: list[Union[SetDataAction, GetFromDataAction]], storage_key: StorageKey) -> tuple[Any, ...]:

@@ -3,8 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from aiogram.types import InlineKeyboardMarkup
 
-from helpers.keyboard_helper import *
-
+from keyboards.buttons import gen_enter_services_button, gen_import_from_file_button, gen_export_to_file_button, \
+    gen_return_to_start_menu_button, gen_return_to_pwd_mgr_button, gen_create_service_button, \
+    gen_next_page_services_button, gen_search_button, gen_service_buttons, gen_delete_services_button, \
+    gen_previous_page_services_button, gen_next_page_pwds_button, gen_pwd_buttons, gen_change_service_button, \
+    gen_delete_service_button, gen_return_to_services_button, gen_create_pwd_button, gen_previous_page_pwds_button, \
+    gen_return_to_passwords_button, gen_delete_pwd_button, gen_inline_query_service_button, \
+    gen_return_to_password_button
 
 if TYPE_CHECKING:
     from helpers.pwd_mgr_helper import DecryptedRecord

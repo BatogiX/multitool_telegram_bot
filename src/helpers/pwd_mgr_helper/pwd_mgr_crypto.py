@@ -1,11 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import base64
-from functools import wraps
 import json
 import os
-import asyncio
-from typing import Callable, Awaitable
 
 import argon2.low_level
 from cryptography.exceptions import InvalidTag
@@ -16,13 +14,6 @@ from config import crypto_cfg
 from utils import add_protocol, strip_protocol
 
 
-def to_thread[T](func: Callable[..., T]) -> Callable[..., Awaitable[T]]:
-    @wraps(func)
-    async def wrapper(*args, **kwargs) -> T:
-        return await asyncio.to_thread(func, *args, **kwargs)
-    return wrapper
-
-
 def gen_salt() -> bytes:
     return os.urandom(crypto_cfg.argon2_random_salt_length)
 
@@ -31,8 +22,7 @@ def gen_nonce() -> bytes:
     return os.urandom(crypto_cfg.random_nonce_length)
 
 
-@to_thread
-def derive_key(master_password: str, salt: bytes) -> bytes:
+async def derive_key(master_password: str, salt: bytes) -> bytes:
     """
     Derive a 256-bit encryption key from a master password using Argon2.
 
@@ -40,6 +30,10 @@ def derive_key(master_password: str, salt: bytes) -> bytes:
     :param salt: Salt for key derivation.
     :return: A securely derived 256-bit key.
     """
+    return await asyncio.to_thread(_derive_key, master_password, salt)
+
+
+def _derive_key(master_password: str, salt: bytes) -> bytes:
     raw_key = argon2.low_level.hash_secret_raw(
         secret=master_password.encode() + crypto_cfg.pepper,
         salt=salt,
@@ -72,10 +66,10 @@ class EncryptedRecord(BaseModel):
         :param derived_key: Derived key from Argon2.
         :return: An EncryptedRecord instance containing the service name and ciphertext.
         """
-        return await asyncio.to_thread(cls._encrypt_sync, decrypted_record, derived_key)
+        return await asyncio.to_thread(cls._encrypt, decrypted_record, derived_key)
 
     @classmethod
-    def _encrypt_sync(
+    def _encrypt(
         cls,
         decrypted_record: DecryptedRecord,
         derived_key: bytes
@@ -112,10 +106,10 @@ class DecryptedRecord(BaseModel):
         :return: A DecryptedRecord containing the service, login, and password.
         :raises InvalidTag: If the decryption fails due to an incorrect key or data corruption.
         """
-        return await asyncio.to_thread(cls._decrypt_sync, encrypted_record, derived_key)
+        return await asyncio.to_thread(cls._decrypt, encrypted_record, derived_key)
 
     @classmethod
-    def _decrypt_sync(
+    def _decrypt(
         cls,
         encrypted_record: EncryptedRecord,
         derived_key: bytes
@@ -135,7 +129,3 @@ class DecryptedRecord(BaseModel):
         service = add_protocol(encrypted_record.service)
         data["service"] = service
         return cls(**data)
-
-
-async def test():
-    await derive_key(master_password="test", salt=gen_salt())

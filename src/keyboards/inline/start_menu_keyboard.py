@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup
 
-from helpers.keyboard_helper import (
+from keyboards.buttons import (
     gen_hash_menu_button,
     gen_password_manager_button,
     gen_generate_random_password_button

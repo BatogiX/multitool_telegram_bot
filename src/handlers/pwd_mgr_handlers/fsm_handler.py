@@ -6,9 +6,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database import db_manager
-from helpers.pwd_mgr_helper.texts import *
+from helpers.pwd_mgr_helper.texts import gen_passwords_text, PASSWORD_DELETED_TEXT, gen_services_text, \
+    ALL_SERVICES_DELETED_TEXT, NO_SERVICES_TEXT, SERVICE_DELETED_TEXT, ENTER_TEXT, IMPORT_FROM_FILE_FSM, \
+    EXPORT_TO_FILE_TEXT
 from models.states import PasswordManagerStates
-from helpers.pwd_mgr_helper import *
+from helpers.pwd_mgr_helper import handle_message_deletion, split_user_input, has_valid_input_length, \
+    validate_master_password, resend_user_input_request, DecryptedRecord, create_password_record, show_service_logins, \
+    process_importing_from_file, process_exporting_to_file
+import keyboards.inline
 
 fsm_router = Router(name=__name__)
 
@@ -31,7 +36,7 @@ async def create_service(message: Message, state: FSMContext) -> Message:
     return await message.answer(
         text=gen_passwords_text(service, pwds_offset),
         parse_mode="Markdown",
-        reply_markup=Keyboards.inline.pwd_mgr_passwords(
+        reply_markup=keyboards.inline.pwd_mgr_passwords(
             decrypted_records=[decrypted_record],
             service=service,
             pwd_offset=0,
@@ -56,7 +61,7 @@ async def create_password(message: Message, state: FSMContext) -> Message:
     decrypted_records, pwds_offset, services_offset = await show_service_logins(message, state, master_password, service)
     return await message.answer(
         text=gen_passwords_text(service, pwds_offset),
-        reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwds_offset, services_offset),
+        reply_markup=keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwds_offset, services_offset),
         parse_mode="Markdown"
     )
 
@@ -92,7 +97,7 @@ async def delete_password(message: Message, state: FSMContext) -> Message:
 
         return await message.answer(
             text=PASSWORD_DELETED_TEXT + gen_passwords_text(service, pwds_offset),
-            reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwds_offset, services_offset),
+            reply_markup=keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwds_offset, services_offset),
             parse_mode="Markdown"
         )
     else:
@@ -100,12 +105,12 @@ async def delete_password(message: Message, state: FSMContext) -> Message:
         if services:
             return await message.answer(
                 text=PASSWORD_DELETED_TEXT + gen_services_text(services_offset=0),
-                reply_markup=Keyboards.inline.pwd_mgr_services(services, services_offset=0)
+                reply_markup=keyboards.inline.pwd_mgr_services(services, services_offset=0)
             )
         else:
             return await message.answer(
                 text=PASSWORD_DELETED_TEXT + NO_SERVICES_TEXT,
-                reply_markup=Keyboards.inline.pwd_mgr_no_services()
+                reply_markup=keyboards.inline.pwd_mgr_no_services()
             )
 
 
@@ -123,7 +128,7 @@ async def service_enter(message: Message, state: FSMContext) -> Message:
     decrypted_records, pwds_offset, services_offset = await show_service_logins(message, state, master_password, service)
     return await message.answer(
         text=gen_passwords_text(service, pwds_offset),
-        reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwds_offset, services_offset),
+        reply_markup=keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwds_offset, services_offset),
         parse_mode="Markdown"
     )
 
@@ -150,7 +155,7 @@ async def change_service(message: Message, state: FSMContext) -> Message:
     services = await db_manager.relational_db.get_services(user_id=message.from_user.id, offset=0)
     return await message.answer(
         text=gen_services_text(services_offset),
-        reply_markup=Keyboards.inline.pwd_mgr_services(services, services_offset)
+        reply_markup=keyboards.inline.pwd_mgr_services(services, services_offset)
     )
 
 
@@ -167,7 +172,7 @@ async def delete_services(message: Message, state: FSMContext) -> Message:
     await db_manager.relational_db.delete_services(message.from_user.id)
     return await message.answer(
         text=ALL_SERVICES_DELETED_TEXT,
-        reply_markup=Keyboards.inline.pwd_mgr_no_services()
+        reply_markup=keyboards.inline.pwd_mgr_no_services()
     )
 
 
@@ -189,12 +194,12 @@ async def delete_service(message: Message, state: FSMContext) -> Message:
     if services:
         return await message.answer(
             text=SERVICE_DELETED_TEXT + gen_services_text(services_offset=0),
-            reply_markup=Keyboards.inline.pwd_mgr_services(services, services_offset)
+            reply_markup=keyboards.inline.pwd_mgr_services(services, services_offset)
         )
     else:
         return await message.answer(
             text=SERVICE_DELETED_TEXT + NO_SERVICES_TEXT,
-            reply_markup=Keyboards.inline.pwd_mgr_no_services()
+            reply_markup=keyboards.inline.pwd_mgr_no_services()
         )
 
 
@@ -213,13 +218,13 @@ async def import_from_file(message: Message, state: FSMContext) -> Message:
     except Exception as e:
         return await message.answer(
             text=f"{str(e)}\n\n{ENTER_TEXT}",
-            reply_markup=Keyboards.inline.pwd_mgr_menu()
+            reply_markup=keyboards.inline.pwd_mgr_menu()
         )
 
     services = await db_manager.relational_db.get_services(message.from_user.id, offset=0)
     return await message.answer(
         text=IMPORT_FROM_FILE_FSM + gen_services_text(services_offset=0),
-        reply_markup=Keyboards.inline.pwd_mgr_services(services, services_offset=0)
+        reply_markup=keyboards.inline.pwd_mgr_services(services, services_offset=0)
     )
 
 
@@ -240,6 +245,6 @@ async def export_to_file(message: Message, state: FSMContext) -> Union[tuple[Mes
     )
     message = await message.answer(
         text=ENTER_TEXT,
-        reply_markup=Keyboards.inline.pwd_mgr_menu()
+        reply_markup=keyboards.inline.pwd_mgr_menu()
     )
     return document_message, message

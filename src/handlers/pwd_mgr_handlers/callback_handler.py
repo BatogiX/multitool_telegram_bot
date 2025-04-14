@@ -6,10 +6,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from database import db_manager
-from helpers.pwd_mgr_helper.texts import *
-from keyboards.inline import *
+from helpers.pwd_mgr_helper.texts import ENTER_TEXT, gen_services_text, NO_SERVICES_TEXT, CREATE_SERVICE_TEXT, \
+    DELETE_SERVICES_TEXT, WARNING, ASK_MASTER_PASSWORD_TEXT, CREATE_PASSWORD_TEXT, gen_credentials, CHANGE_SERVICE_TEXT, \
+    DELETE_SERVICE_TEXT, DELETE_PASSWORD_TEXT, IMPORT_FROM_FILE_TEXT
+import keyboards.inline
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from models.states import PasswordManagerStates
+from utils import escape_markdown_v2
 
 callback_router = Router(name=__name__)
 
@@ -18,7 +21,7 @@ callback_router = Router(name=__name__)
 async def enter(query: CallbackQuery) -> Message:
     return await query.message.edit_text(
         text=ENTER_TEXT,
-        reply_markup=pwd_mgr_menu()
+        reply_markup=keyboards.inline.pwd_mgr_menu()
     )
 
 
@@ -37,10 +40,10 @@ async def enter_services(query: CallbackQuery, state: FSMContext, callback_data:
 
     return await query.message.edit_text(
         text=gen_services_text(services_offset),
-        reply_markup=pwd_mgr_services(services, services_offset),
+        reply_markup=keyboards.inline.pwd_mgr_services(services, services_offset),
     ) if services else await query.message.edit_text(
         text=NO_SERVICES_TEXT,
-        reply_markup=pwd_mgr_no_services(),
+        reply_markup=keyboards.inline.pwd_mgr_no_services(),
     )
 
 
@@ -60,10 +63,10 @@ async def create_service(query: CallbackQuery, state: FSMContext, callback_data:
 
     return await query.message.edit_text(
         text=CREATE_SERVICE_TEXT,
-        reply_markup=return_to_services(services_offset)
+        reply_markup=keyboards.inline.return_to_services(services_offset)
     ) if record else await query.message.edit_text(
         text=WARNING + CREATE_SERVICE_TEXT,
-        reply_markup=return_to_services(services_offset)
+        reply_markup=keyboards.inline.return_to_services(services_offset)
     )
 
 
@@ -80,7 +83,7 @@ async def delete_services(query: CallbackQuery, state: FSMContext, callback_data
 
     return await query.message.edit_text(
         text=DELETE_SERVICES_TEXT,
-        reply_markup=return_to_services(services_offset)
+        reply_markup=keyboards.inline.return_to_services(services_offset)
     )
 
 
@@ -102,14 +105,14 @@ async def enter_service(query: CallbackQuery, callback_data: PwdMgrCb.EnterServi
     if query.message:
         return await query.message.edit_text(
             text=ASK_MASTER_PASSWORD_TEXT,
-            reply_markup=return_to_services(services_offset)
+            reply_markup=keyboards.inline.return_to_services(services_offset)
         )
 
     #  Callback from inline_query (Message can't be deleted)
     await query.bot.send_message(
         chat_id=query.from_user.id,
         text=ASK_MASTER_PASSWORD_TEXT,
-        reply_markup=return_to_services(services_offset)
+        reply_markup=keyboards.inline.return_to_services(services_offset)
     )
 
 
@@ -127,7 +130,7 @@ async def create_password(query: CallbackQuery, callback_data: PwdMgrCb.CreatePa
 
     return await query.message.edit_text(
         text=CREATE_PASSWORD_TEXT,
-        reply_markup=return_to_passwords(service, services_offset, pwds_offset)
+        reply_markup=keyboards.inline.return_to_passwords(service, services_offset, pwds_offset)
     )
 
 
@@ -144,7 +147,7 @@ async def enter_password(query: CallbackQuery, callback_data: PwdMgrCb.EnterPass
 
     return await query.message.edit_text(
         text=gen_credentials(service, login, password),
-        reply_markup=pwd_mgr_password(service, login, password, pwds_offset, services_offset),
+        reply_markup=keyboards.inline.pwd_mgr_password(service, login, password, pwds_offset, services_offset),
         parse_mode="MarkdownV2"
     )
 
@@ -163,7 +166,7 @@ async def change_service(query: CallbackQuery, state: FSMContext, callback_data:
 
     return await query.message.edit_text(
         text=CHANGE_SERVICE_TEXT,
-        reply_markup=return_to_passwords(old_service, services_offset, pwds_offset)
+        reply_markup=keyboards.inline.return_to_passwords(old_service, services_offset, pwds_offset)
     )
 
 
@@ -181,7 +184,7 @@ async def delete_service(query: CallbackQuery, state: FSMContext, callback_data:
 
     return await query.message.edit_text(
         text=DELETE_SERVICE_TEXT,
-        reply_markup=return_to_passwords(service_to_delete, services_offset, pwds_offset)
+        reply_markup=keyboards.inline.return_to_passwords(service_to_delete, services_offset, pwds_offset)
     )
 
 
@@ -199,7 +202,7 @@ async def delete_password(query: CallbackQuery, state: FSMContext, callback_data
 
     return await query.message.edit_text(
         text=gen_credentials(service, login, password) + escape_markdown_v2(DELETE_PASSWORD_TEXT),
-        reply_markup=return_to_password(login, password),
+        reply_markup=keyboards.inline.return_to_password(login, password),
         parse_mode="MarkdownV2"
     )
 
@@ -215,7 +218,7 @@ async def import_from_file(query: CallbackQuery, state: FSMContext) -> Message:
 
     return await query.message.edit_text(
         text=IMPORT_FROM_FILE_TEXT,
-        reply_markup=return_to_pwd_mgr()
+        reply_markup=keyboards.inline.return_to_pwd_mgr()
     )
 
 
@@ -230,5 +233,5 @@ async def export_to_file(query: CallbackQuery, state: FSMContext) -> Message:
 
     return await query.message.edit_text(
         text=ASK_MASTER_PASSWORD_TEXT,
-        reply_markup=return_to_pwd_mgr()
+        reply_markup=keyboards.inline.return_to_pwd_mgr()
     )

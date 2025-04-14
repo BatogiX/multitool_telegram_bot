@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 from argon2 import (
     DEFAULT_TIME_COST,
     DEFAULT_MEMORY_COST,
@@ -8,9 +8,11 @@ from argon2 import (
     Type,
 )
 
+from config.settings import base_settings_config
+
 
 class CryptographyConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CRYPTO_", frozen=True)
+    model_config = base_settings_config(prefix="CRYPTO_")
 
     pepper: bytes = b""                                            # (Recommended 256-bit)
     random_nonce_length: int = 16                                  # 16 (128-bit)

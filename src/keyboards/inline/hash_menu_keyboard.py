@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from helpers.keyboard_helper import (
+from keyboards.buttons import (
     gen_hash_buttons,
     gen_return_to_start_menu_button,
     gen_return_to_hash_menu_button,

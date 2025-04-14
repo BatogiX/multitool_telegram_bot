@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from database import db_manager
 from config import bot_cfg
+import keyboards.inline
 from utils import delete_file, download_file, delete_fsm_message
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from .pwd_mgr_crypto import DecryptedRecord, EncryptedRecord
@@ -81,7 +82,7 @@ async def resend_user_input_request(
     input_format, _ = await db_manager.key_value_db.execute_batch(*coroutines)
     message_to_delete = await message.answer(
         text=f"{error_message}\n\n{input_format}",
-        reply_markup=return_to_services(services_offset=0)
+        reply_markup=keyboards.inline.return_to_services(services_offset=0)
     )
     await db_manager.key_value_db.set_message_id_to_delete(message_to_delete.message_id, state)
     return message_to_delete

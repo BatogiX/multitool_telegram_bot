@@ -3,7 +3,8 @@ from typing import Optional
 
 from aiogram.types import InlineKeyboardButton
 
-from utils.kb_utils import create_button, gen_dynamic_buttons
+from helpers.pwd_mgr_helper import DecryptedRecord
+from utils.kb_utils import create_button, gen_dynamic_buttons, RETURN_CHAR, PREVIOUS_PAGE_CHAR, NEXT_PAGE_CHAR
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
 from config import bot_cfg
 
@@ -26,14 +27,14 @@ inline_query_search_service = "service="
 
 def gen_return_to_pwd_mgr_button() -> InlineKeyboardButton:
     return create_button(
-        text=f"{return_char} {return_to_pwd_mgr_text}",
+        text=f"{RETURN_CHAR} {return_to_pwd_mgr_text}",
         callback_data=PwdMgrCb.Enter()
     )
 
 
 def gen_return_to_services_button( services_offset: int) -> InlineKeyboardButton:
     return create_button(
-        text=f"{return_char} {return_to_services_text}",
+        text=f"{RETURN_CHAR} {return_to_services_text}",
         callback_data=PwdMgrCb.EnterServices(services_offset=services_offset)
     )
 
@@ -107,7 +108,7 @@ def gen_previous_page_services_button(offset: int) -> Optional[InlineKeyboardBut
         return None
 
     return create_button(
-        text=previous_page_char,
+        text=PREVIOUS_PAGE_CHAR,
         callback_data=PwdMgrCb.EnterServices(services_offset=offset - 1)
     )
 
@@ -118,7 +119,7 @@ def gen_next_page_services_button(services: list[str], offset: int) -> Optional[
 
     services.pop()
     return create_button(
-        text=next_page_char,
+        text=NEXT_PAGE_CHAR,
         callback_data=PwdMgrCb.EnterServices(services_offset=offset + 1)
     )
 
@@ -128,7 +129,7 @@ def gen_previous_page_pwds_button(services_offset: int, pwd_offset: int, service
         return None
 
     return create_button(
-        text=previous_page_char,
+        text=PREVIOUS_PAGE_CHAR,
         callback_data=PwdMgrCb.EnterService(service=service, services_offset=services_offset, pwds_offset=pwd_offset - 1)
     )
 
@@ -139,7 +140,7 @@ def gen_next_page_pwds_button(decrypted_records: list[DecryptedRecord], service:
 
     decrypted_records.pop()
     return create_button(
-        text=next_page_char,
+        text=NEXT_PAGE_CHAR,
         callback_data=PwdMgrCb.EnterService(service=service, services_offset=services_offset, pwds_offset=pwds_offset + 1)
     )
 
@@ -181,13 +182,13 @@ def gen_inline_query_service_button(service: str) -> InlineKeyboardButton:
 
 def gen_return_to_passwords_button(service: str, services_offset: int, pwds_offset: int) -> InlineKeyboardButton:
     return create_button(
-        text=f"{return_char} {return_to_passwords_text}",
+        text=f"{RETURN_CHAR} {return_to_passwords_text}",
         callback_data=PwdMgrCb.EnterService(service=service, services_offset=services_offset, pwds_offset=pwds_offset)
     )
 
 
 def gen_return_to_password_button(login: str, password: str) -> InlineKeyboardButton:
     return create_button(
-        text=f"{return_char} {return_to_password_text}",
+        text=f"{RETURN_CHAR} {return_to_password_text}",
         callback_data=PwdMgrCb.EnterPassword(login=login, password=password)
     )

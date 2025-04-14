@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardButton
 
 from models.callback_data import HashMenuCallbackData, StartMenuCallbackData, PasswordManagerCallbackData as PwdMgrCb, \
     GenerateRandomPasswordCallback
-from utils.kb_utils import create_button
+from utils.kb_utils import create_button, RETURN_CHAR
 
 return_to_start_menu_text = "Back to Main Menu"
 hash_menu_text = "🔍 Verify File's Checksum"
@@ -26,7 +26,7 @@ def gen_password_manager_button() -> InlineKeyboardButton:
 
 def gen_return_to_start_menu_button() -> InlineKeyboardButton:
     return create_button(
-        text=f"{return_char} {return_to_start_menu_text}",
+        text=f"{RETURN_CHAR} {return_to_start_menu_text}",
         callback_data=StartMenuCallbackData.Enter()
     )
 

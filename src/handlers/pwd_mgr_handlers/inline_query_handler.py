@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 
 from database import db_manager
-from helpers.keyboard_helper.pwd_mgr_kb import inline_query_search_service
+from keyboards.buttons.pwd_mgr_kb import inline_query_search_service
 from keyboards.inline import pwd_mgr_inline_search
 from utils import add_protocol
 

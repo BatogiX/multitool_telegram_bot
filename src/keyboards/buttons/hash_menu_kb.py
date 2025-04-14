@@ -1,8 +1,7 @@
 from aiogram.types import InlineKeyboardButton
 
 from models.callback_data import HashMenuCallbackData
-from utils.kb_utils import create_button
-
+from utils.kb_utils import create_button, RETURN_CHAR
 
 RETURN_TO_HASH_MENU_TEXT = "Back to Hash Menu"
 RETRY_SAME_HASH_TEXT = "🔄️"
@@ -10,7 +9,7 @@ RETRY_SAME_HASH_TEXT = "🔄️"
 
 def gen_return_to_hash_menu_button() -> InlineKeyboardButton:
     return create_button(
-        text=f"{return_char} {RETURN_TO_HASH_MENU_TEXT}",
+        text=f"{RETURN_CHAR} {RETURN_TO_HASH_MENU_TEXT}",
         callback_data=HashMenuCallbackData.Enter()
     )
 

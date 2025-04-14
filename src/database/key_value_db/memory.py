@@ -15,7 +15,7 @@ class MemoryStorageManager(AbstractKeyValueDatabase):
         self.storage = MemoryStorage()
 
     async def connect(self) -> None:
-        logging.info(f"Using MemoryStorage")
+        logging.info("Using MemoryStorage")
 
     async def close(self) -> None:
         await self.storage.close()

@@ -16,5 +16,5 @@ __all__ = (
     "strip_protocol",
     "escape_markdown_v2",
     "gen_dynamic_buttons",
-    "create_button"
+    "create_button",
 )

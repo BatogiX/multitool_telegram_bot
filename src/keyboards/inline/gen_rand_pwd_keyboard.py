@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup
 
-from helpers.keyboard_helper import gen_return_to_start_menu_button, gen_regenerate_rand_pwd_button
+from keyboards.buttons import gen_return_to_start_menu_button, gen_regenerate_rand_pwd_button
 
 
 def gen_rand_pwd() -> InlineKeyboardMarkup:

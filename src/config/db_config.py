@@ -1,11 +1,13 @@
 from typing import Literal, Optional
 
 from pydantic import Field, AliasChoices
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
+
+from config.settings import base_settings_config
 
 
 class KeyValueDatabaseConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="KEY_VALUE_DB_", frozen=True)
+    model_config = base_settings_config(prefix="KEY_VALUE_DB_")
 
     backend: Literal["redis", "memory"] = Field(default="redis", validate_default=True)
 
@@ -21,7 +23,7 @@ class KeyValueDatabaseConfig(BaseSettings):
 
 
 class RelationalDatabaseConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="RELATIONAL_DB_", frozen=True)
+    model_config = base_settings_config(prefix="RELATIONAL_DB_")
 
     backend: Literal["postgres"] = Field(default="postgres", validate_default=True)
 
