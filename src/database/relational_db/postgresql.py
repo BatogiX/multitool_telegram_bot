@@ -6,9 +6,9 @@ from typing import Optional, cast, Any
 from aiogram.fsm.context import FSMContext
 from asyncpg import Pool, Connection, Record, create_pool
 
-from database import db_manager
-from database.base import AbstractRelationDatabase
 from config import bot_cfg, relational_db_cfg as c
+from database import db
+from database.base import AbstractRelationDatabase
 from helpers.pwd_mgr_helper import EncryptedRecord
 
 
@@ -41,8 +41,9 @@ class PostgresqlManager(AbstractRelationDatabase):
         await self._pool.close()
         logging.info("Disconnected from PostgreSQL")
 
-    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str, state: FSMContext) -> None:
-        if await db_manager.key_value_db.get_cache_user_created(state):
+    async def create_user_if_not_exists(self, user_id: int, user_name: str, full_name: str,
+                                        state: FSMContext) -> None:
+        if await db.key_value.get_cache_user_created(state):
             return
 
         execute = self._execute(
@@ -53,10 +54,11 @@ class PostgresqlManager(AbstractRelationDatabase):
             """,
             user_id, user_name, full_name, os.urandom(16).hex()
         )
-        set_cache = db_manager.key_value_db.set_cache_user_created(state)
+        set_cache = db.key_value.set_cache_user_created(state)
         await asyncio.gather(execute, set_cache)
 
-    async def get_services(self, user_id: int, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
+    async def get_services(self, user_id: int, offset: int,
+                           limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[str]]:
         records = await self._fetch_all(
             """
             SELECT service FROM(SELECT DISTINCT ON (service) service, password_id FROM public.passwords WHERE user_id = $1 ORDER BY service, password_id DESC)
@@ -73,7 +75,9 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, service, ciphertext
         )
 
-    async def get_passwords(self, user_id: int, service: str, offset: int, limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[list[EncryptedRecord]]:
+    async def get_passwords(self, user_id: int, service: str, offset: int,
+                            limit: int = bot_cfg.dynamic_buttons_limit) -> Optional[
+        list[EncryptedRecord]]:
         records = await self._fetch_all(
             "SELECT service, ciphertext FROM public.passwords WHERE user_id = $1 AND service = $2 OFFSET $3 LIMIT $4",
             user_id, service, offset * limit, limit + 1
@@ -111,13 +115,22 @@ class PostgresqlManager(AbstractRelationDatabase):
             user_id, service
         )
 
-    async def delete_password(self, user_id: int, service: str, ciphertext: str) -> None:
+    async def delete_password(self, user_id, service, ciphertext):
         await self._execute(
-            "DELETE FROM public.passwords WHERE user_id = $1 AND service = $2 AND ciphertext = $3",
+            """DELETE FROM public.passwords
+               WHERE user_id = $1 AND service = $2 AND ciphertext = $3""",
             user_id, service, ciphertext
         )
 
-    async def import_passwords(self, user_id: int, encrypted_records: list[EncryptedRecord]) -> None:
+    async def update_credentials(self, user_id, service, current_ciphertext, new_ciphertext):
+        await self._execute(
+            """UPDATE public.passwords SET ciphertext = $3
+               WHERE service = $1 AND ciphertext = $2""",
+            service, current_ciphertext, new_ciphertext
+        )
+
+    async def import_passwords(self, user_id: int,
+                               encrypted_records: list[EncryptedRecord]) -> None:
         values = [
             (user_id, r.service, r.ciphertext)
             for r in encrypted_records
@@ -130,12 +143,12 @@ class PostgresqlManager(AbstractRelationDatabase):
 
         await self._execute(
             query,
-            [v[0] for v in values], # user_id
-            [v[1] for v in values], # service
+            [v[0] for v in values],  # user_id
+            [v[1] for v in values],  # service
             [v[2] for v in values]  # ciphertext
         )
 
-    async def export_passwords(self, user_id: int) -> Optional[list[EncryptedRecord]]:
+    async def export_passwords(self, user_id: int) -> list[EncryptedRecord]:
         records = await self._fetch_all(
             "SELECT service, ciphertext FROM public.passwords WHERE user_id = $1",
             user_id
@@ -145,12 +158,20 @@ class PostgresqlManager(AbstractRelationDatabase):
             ciphertext=record.get("ciphertext")
         ) for record in records]
 
-    async def inline_search_service(self, user_id: int, service: str, limit: int = bot_cfg.dynamic_buttons_limit) -> list[str]:
+    async def inline_search_service(self, user_id: int, service: str,
+                                    limit: int = bot_cfg.dynamic_buttons_limit) -> list[str]:
         records = await self._fetch_all(
             "SELECT DISTINCT service FROM public.passwords WHERE user_id = $1 AND service LIKE $2 LIMIT $3",
             user_id, f"%{service}%", limit
         )
         return [record.get("service") for record in records]
+
+    async def get_salt(self, user_id):
+        salt: str = await self._fetch_value(
+            "SELECT salt FROM public.users WHERE user_id = $1",
+            user_id
+        )
+        return salt.encode("utf-8")
 
     async def _execute(self, query: str, *args) -> None:
         async with self._pool.acquire() as con:

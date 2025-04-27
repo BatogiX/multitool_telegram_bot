@@ -6,12 +6,18 @@ SERVICE_TEXT = "*Service*: "
 ENTER_TEXT = "Choose option"
 IMPORT_FROM_FILE_TEXT = "Please send the .csv file and enter your Master Password in caption"
 NO_SERVICES_TEXT = "You don't have any services yet. Create one now?"
-DELETE_SERVICES_TEXT = "Are you sure you want to delete all services?\n\nIf yes - please enter your Master Password"
+DELETE_SERVICES_TEXT = ("Are you sure you want to delete all services?\n\n"
+                        "If yes - please enter your Master Password")
 ASK_MASTER_PASSWORD_TEXT = "Please enter your Master Password"
 CREATE_PASSWORD_TEXT = "Please enter your <Master Password> <login> <password>"
-CHANGE_SERVICE_TEXT = "Please enter new service name"
-DELETE_SERVICE_TEXT = "Are you sure you want to delete this service?\n\nIf yes - please enter your Master Password"
-DELETE_PASSWORD_TEXT = "\n\nAre you sure you want to delete this password?\nIf yes - please enter your <Master Password> <login> <password>"
+CHANGE_SERVICE_TEXT = "Please enter <Master Password> <new service name>"
+DELETE_SERVICE_TEXT = ("Are you sure you want to delete this service?\n\n"
+                       "If yes - please enter your Master Password")
+DELETE_PASSWORD_TEXT = ("\n\nAre you sure you want to delete this password?\n"
+                        "If yes - please enter your <Master Password> <login> <password>")
+UPDATE_CREDENTIALS_TEXT = ("Please enter your <Master Password> <login> <password> "
+                           "<new login> <new password>")
+CHANGE_MASTER_PASSWORD_TEXT = "Please enter your <current Master Password> <new Master Password>"
 CREATE_SERVICE_TEXT = "Please enter <Master Password> <service name> <login> <password>"
 LOGIN_TEXT = "\n\n*Login*: "
 PASSWORD_TEXT = "\n*Password*: "
@@ -36,9 +42,9 @@ def gen_credentials(service: str, login: str, password: str) -> str:
     service = add_protocol(service)
     service = escape_markdown_v2(service)
     return (
-        SERVICE_TEXT + service +
-        LOGIN_TEXT + f"`{login}`" +
-        PASSWORD_TEXT + f"`{password}`"
+            SERVICE_TEXT + service +
+            LOGIN_TEXT + f"`{login}`" +
+            PASSWORD_TEXT + f"`{password}`"
     )
 
 
@@ -53,7 +59,7 @@ SERVICE_DELETED_TEXT = "Service was deleted successfully\n\n"
 def gen_passwords_text(service: str, pwds_offset: int) -> str:
     service = add_protocol(service)
     return (
-        SERVICE_TEXT + service +
-        "\n\nChoose your login to see password" +
-        f"\nPage: {pwds_offset + 1}"
+            SERVICE_TEXT + service + "\n\n"
+            "Choose your login to see password" + "\n"
+            f"Page: {pwds_offset + 1}"
     )

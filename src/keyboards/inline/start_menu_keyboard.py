@@ -1,18 +1,17 @@
 from aiogram.types import InlineKeyboardMarkup
 
-from keyboards.buttons import (
-    gen_hash_menu_button,
-    gen_password_manager_button,
-    gen_generate_random_password_button
-)
+from keyboards.buttons import start_menu
 
 
-def start_menu() -> InlineKeyboardMarkup:
-    hash_menu_button = gen_hash_menu_button()
-    password_manager_button = gen_password_manager_button()
-    generate_password_button = gen_generate_random_password_button()
+def _start_menu_ikm() -> InlineKeyboardMarkup:
+    btn_hash_menu = start_menu.btn_hash_menu
+    btn_password_manager_menu = start_menu.btn_password_manager_menu
+    btn_generate_random_password = start_menu.btn_generate_random_password
 
     return InlineKeyboardMarkup(inline_keyboard=[
-        [hash_menu_button, password_manager_button],
-        [generate_password_button]
+        [btn_hash_menu, btn_password_manager_menu],
+        [btn_generate_random_password]
     ])
+
+
+start_menu_ikm: InlineKeyboardMarkup = _start_menu_ikm()

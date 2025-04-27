@@ -8,4 +8,6 @@ class BaseCacheUserCreated(BaseKeyValue):
 
 
 class SetCacheUserCreated(BaseKeyValueSet, BaseCacheUserCreated): ...
+
+
 class GetCacheUserCreated(BaseKeyValueGet, BaseCacheUserCreated): ...

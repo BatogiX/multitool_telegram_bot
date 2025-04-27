@@ -4,7 +4,6 @@ import asyncio
 import csv
 import re
 from io import BytesIO
-from typing import Union
 
 import aiofiles
 from aiogram.fsm.context import FSMContext
@@ -12,56 +11,65 @@ from aiogram.types import Message, BufferedInputFile
 from cryptography.exceptions import InvalidTag
 from pydantic import ValidationError
 
-from database import db_manager
-from config import bot_cfg
 import keyboards.inline
-from utils import delete_file, download_file, delete_fsm_message
+from config import bot_cfg
+from database import db
 from models.callback_data import PasswordManagerCallbackData as PwdMgrCb
+from utils import delete_file, download_file, delete_fsm_message
+from . import derive_key
 from .pwd_mgr_crypto import DecryptedRecord, EncryptedRecord
 
 MAX_CHAR_LIMIT = 64
+MAX_SERVICE_CHAR_LIMIT = 45
 MSG_ERROR_INVALID_FORMAT = "Wrong format"
 MSG_ERROR_LONG_INPUT = "Login or password is too long"
 MSG_ERROR_MASTER_PASS = "Wrong Master Password"
+MIN_RECORD_LENGTH = len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{bot_cfg.sep}")
 
 
 async def show_service_logins(
-        message: Message,
-        state: FSMContext,
-        master_password: str,
-        service: str
+    message: Message,
+    state: FSMContext,
+    derived_key: bytes,
+    service: str
 ) -> tuple[list[DecryptedRecord], int, int]:
     pwd_offset, services_offset = await asyncio.gather(
-        db_manager.key_value_db.get_pwds_offset(state),
-        db_manager.key_value_db.get_services_offset(state),
+        db.key_value.get_pwds_offset(state),
+        db.key_value.get_services_offset(state),
     )
-    encrypted_records = await db_manager.relational_db.get_passwords(
+    encrypted_records = await db.relational.get_passwords(
         user_id=message.from_user.id,
         service=service,
         offset=pwd_offset
     )
-    decrypted_records = []
-    for encrypted_record in encrypted_records:
-        decrypted_records.append(await DecryptedRecord.decrypt(encrypted_record, master_password))
+    decrypted_records = await DecryptedRecord.decrypt(encrypted_records, derived_key)
 
     return decrypted_records, pwd_offset, services_offset
 
 
-def has_valid_input_length(login: str, password: str):
+def has_valid_input_length(login: str, password: str) -> None:
     """Checks if the combined input length exceeds the max character limit."""
-    if len(f"{PwdMgrCb.EnterPassword.__prefix__}{bot_cfg.sep}{login}{bot_cfg.sep}{password}") > MAX_CHAR_LIMIT:
+    record_length = MIN_RECORD_LENGTH + len(login + password)
+    if record_length > MAX_CHAR_LIMIT:
         raise ValueError(MSG_ERROR_LONG_INPUT)
 
 
-async def create_password_record(decrypted_record: DecryptedRecord, user_id: int, master_password: str) -> None:
-    encrypted_record = await EncryptedRecord.encrypt(decrypted_record, master_password)
-    asyncio.create_task(db_manager.relational_db.create_password(user_id, encrypted_record.service, encrypted_record.ciphertext))
+def has_valid_service_length(service: str) -> None:
+    if len(service) > MAX_SERVICE_CHAR_LIMIT:
+        raise ValueError(f"Service must be <= {MAX_SERVICE_CHAR_LIMIT} symbols length")
 
 
-def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> Union[str, tuple[str, ...]]:
-    if maxsplit == 1:
-        return user_input
+async def create_password_record(
+    decrypted_record: DecryptedRecord, user_id: int, derived_key: bytes
+) -> None:
+    decrypted_record = [decrypted_record]
+    encrypted_record = (await EncryptedRecord.encrypt(decrypted_record, derived_key))[0]
+    await db.relational.create_password(
+        user_id, encrypted_record.service, encrypted_record.ciphertext
+    )
 
+
+def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> tuple[str, ...]:
     parts = tuple(user_input.split(sep=sep))
     if len(parts) == maxsplit:
         return parts
@@ -70,32 +78,30 @@ def split_user_input(user_input: str, maxsplit: int, sep: str = bot_cfg.sep) -> 
 
 
 async def resend_user_input_request(
-        state: FSMContext,
-        message: Message,
-        error_message: str,
-        current_state: str,
+    state: FSMContext,
+    message: Message,
+    error_message: str,
+    current_state: str,
 ) -> Message:
-    coroutines = [
-        db_manager.key_value_db.get_input_format_text(state),
-        db_manager.key_value_db.set_state(current_state, state)
-    ]
-    input_format, _ = await db_manager.key_value_db.execute_batch(*coroutines)
+    input_format, _ = await db.key_value.execute_batch(
+        db.key_value.get_input_format_text(state),
+        db.key_value.set_state(current_state, state)
+    )
     message_to_delete = await message.answer(
         text=f"{error_message}\n\n{input_format}",
-        reply_markup=keyboards.inline.return_to_services(services_offset=0)
+        reply_markup=keyboards.inline.return_to_services_ikm(services_offset=0)
     )
-    await db_manager.key_value_db.set_message_id_to_delete(message_to_delete.message_id, state)
+    await db.key_value.set_message_id_to_delete(message_to_delete.message_id, state)
     return message_to_delete
 
 
 async def handle_message_deletion(state: FSMContext, message: Message) -> str:
-    coroutines = [
-        db_manager.key_value_db.get_state(state),
-        db_manager.key_value_db.get_message_id_to_delete(state),
-        db_manager.key_value_db.clear_state(state),
-    ]
     results, _ = await asyncio.gather(
-        db_manager.key_value_db.execute_batch(*coroutines),
+        db.key_value.execute_batch(
+            db.key_value.get_state(state),
+            db.key_value.get_message_id_to_delete(state),
+            db.key_value.clear_state(state)
+        ),
         message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id),
     )
     current_state, message_id, _ = results
@@ -103,7 +109,7 @@ async def handle_message_deletion(state: FSMContext, message: Message) -> str:
     return current_state
 
 
-async def process_importing_from_file(message: Message, master_password: str):
+async def process_importing_from_file(message: Message, derived_key: bytes):
     try:
         temp_file_path = await download_file(message)
     except Exception:
@@ -118,29 +124,35 @@ async def process_importing_from_file(message: Message, master_password: str):
     finally:
         await delete_file(temp_file_path)
 
-    encrypted_records = []
+    decrypted_records = []
     reader = csv.DictReader(lines)
     for row in reader:
-        service = row.get("url", None).replace(bot_cfg.sep, "")
-        login = row.get("username", None).replace(bot_cfg.sep, "")
-        password = row.get("password", None).replace(bot_cfg.sep, "")
+        service = row.get("url", "").replace(bot_cfg.sep, "")
+        login = row.get("username", "").replace(bot_cfg.sep, "")
+        password = row.get("password", "").replace(bot_cfg.sep, "")
         try:
+            has_valid_service_length(service)
             has_valid_input_length(login, password)
             decrypted_record = DecryptedRecord(service=service, login=login, password=password)
         except (ValueError, ValidationError):
             continue
-        encrypted_records.append(await EncryptedRecord.encrypt(decrypted_record, master_password))
+        decrypted_records.append(decrypted_record)
+    encrypted_records = await EncryptedRecord.encrypt(decrypted_records, derived_key)
 
-    await db_manager.relational_db.import_passwords(user_id=message.from_user.id, encrypted_records=encrypted_records)
+    await db.relational.import_passwords(
+        user_id=message.from_user.id, encrypted_records=encrypted_records
+    )
 
 
-async def process_exporting_to_file(master_password: str, user_id: int) -> BufferedInputFile:
-    encrypted_records = await db_manager.relational_db.export_passwords(user_id=user_id)
+async def process_exporting_to_file(derived_key: bytes, user_id: int) -> BufferedInputFile:
+    encrypted_records = await db.relational.export_passwords(user_id=user_id)
+    decrypted_records = await DecryptedRecord.decrypt(encrypted_records, derived_key)
 
     csv_lines = ['"url","username","password"']
-    for encrypted_record in encrypted_records:
-        decrypted_record = await DecryptedRecord.decrypt(encrypted_record, master_password)
-        csv_lines.append(f'"{decrypted_record.service}","{decrypted_record.login}","{decrypted_record.password}"')
+    for record in decrypted_records:
+        csv_lines.append(
+            f'"{record.service}","{record.login}","{record.password}"'
+        )
 
     csv_content = "\n".join(csv_lines).encode('utf-8')
     buffer = BytesIO(csv_content)
@@ -148,7 +160,7 @@ async def process_exporting_to_file(master_password: str, user_id: int) -> Buffe
     return BufferedInputFile(file=buffer.read(), filename=f"{user_id}_passwords.csv")
 
 
-async def validate_master_password(master_password: str, user_id: int) -> None:
+async def validate_master_password(master_password: str, user_id: int) -> bytes:
     """
     Verifies the correctness of a master password.
 
@@ -162,14 +174,17 @@ async def validate_master_password(master_password: str, user_id: int) -> None:
     except ValueError:
         raise
 
-    rand_encrypted_record = await db_manager.relational_db.get_rand_password(user_id)
-    if not rand_encrypted_record:
-        return
+    salt = await db.relational.get_salt(user_id)
+    derived_key = await derive_key(master_password, salt)
 
-    try:
-        await DecryptedRecord.decrypt(rand_encrypted_record, master_password)
-    except InvalidTag:
-        raise InvalidTag(MSG_ERROR_MASTER_PASS)
+    rand_encrypted_record = [await db.relational.get_rand_password(user_id)]
+    if rand_encrypted_record:
+        try:
+            await DecryptedRecord.decrypt(rand_encrypted_record, derived_key)
+        except InvalidTag:
+            raise InvalidTag(MSG_ERROR_MASTER_PASS)
+
+    return derived_key
 
 
 def _validate_master_password(master_password: str):

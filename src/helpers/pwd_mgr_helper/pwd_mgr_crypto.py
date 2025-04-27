@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import os
+from typing import Iterable
 
 import argon2.low_level
 from cryptography.exceptions import InvalidTag
@@ -56,32 +57,36 @@ class EncryptedRecord(BaseModel):
     @classmethod
     async def encrypt(
         cls,
-        decrypted_record: DecryptedRecord,
+        decrypted_records: Iterable[DecryptedRecord],
         derived_key: bytes
-    ) -> EncryptedRecord:
+    ) -> list[EncryptedRecord]:
         """
         Encrypts login credentials.
 
-        :param decrypted_record: The record containing login and password to be encrypted.
+        :param decrypted_records: The record containing login and password to be encrypted.
         :param derived_key: Derived key from Argon2.
         :return: An EncryptedRecord instance containing the service name and ciphertext.
         """
-        return await asyncio.to_thread(cls._encrypt, decrypted_record, derived_key)
+        return await asyncio.to_thread(cls._encrypt, decrypted_records, derived_key)
 
     @classmethod
     def _encrypt(
         cls,
-        decrypted_record: DecryptedRecord,
+        decrypted_records: Iterable[DecryptedRecord],
         derived_key: bytes
-    ) -> EncryptedRecord:
-        service = strip_protocol(decrypted_record.service)
-        plaintext = decrypted_record.model_dump_json(exclude={"service"}).encode("utf-8")
-
+    ) -> list[EncryptedRecord]:
         aesgcm = AESGCM(derived_key)
-        nonce = gen_nonce()
-        ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data=None)
-        ciphertext = base64.urlsafe_b64encode(nonce + ciphertext).decode()
-        return cls(service=service, ciphertext=ciphertext)
+
+        encrypted_records = []
+        for decrypted_record in decrypted_records:
+            nonce = gen_nonce()
+            plaintext = decrypted_record.model_dump_json(exclude={"service"}).encode("utf-8")
+            ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+            b64 = base64.urlsafe_b64encode(nonce + ciphertext).decode()
+
+            service = strip_protocol(decrypted_record.service)
+            encrypted_records.append(cls(service=service, ciphertext=b64))
+        return encrypted_records
 
 
 class DecryptedRecord(BaseModel):
@@ -95,9 +100,9 @@ class DecryptedRecord(BaseModel):
     @classmethod
     async def decrypt(
         cls,
-        encrypted_record: EncryptedRecord,
+        encrypted_record: Iterable[EncryptedRecord],
         derived_key: bytes
-    ) -> DecryptedRecord:
+    ) -> list[DecryptedRecord]:
         """
         Decrypts an `EncryptedRecord` and returns a `DecryptedRecord`.
 
@@ -111,21 +116,23 @@ class DecryptedRecord(BaseModel):
     @classmethod
     def _decrypt(
         cls,
-        encrypted_record: EncryptedRecord,
+        encrypted_records: Iterable[EncryptedRecord],
         derived_key: bytes
-    ) -> DecryptedRecord:
-        data = base64.urlsafe_b64decode(encrypted_record.ciphertext)
-
-        nonce = data[:crypto_cfg.random_nonce_length]
-        ciphertext = data[crypto_cfg.random_nonce_length:]
-
+    ) -> list[DecryptedRecord]:
         aesgcm = AESGCM(derived_key)
-        try:
-            plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data=None)
-        except InvalidTag:
-            raise
 
-        data = json.loads(plaintext.decode("utf-8"))
-        service = add_protocol(encrypted_record.service)
-        data["service"] = service
-        return cls(**data)
+        decrypted_records = []
+        for encrypted_record in encrypted_records:
+            b64 = base64.urlsafe_b64decode(encrypted_record.ciphertext)
+            nonce = b64[:crypto_cfg.random_nonce_length]
+            ciphertext = b64[crypto_cfg.random_nonce_length:]
+
+            try:
+                plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data=None)
+            except InvalidTag:
+                raise
+
+            data = json.loads(plaintext.decode("utf-8"))
+            data["service"] = add_protocol(encrypted_record.service)
+            decrypted_records.append(cls(**data))
+        return decrypted_records

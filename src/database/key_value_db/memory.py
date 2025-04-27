@@ -3,7 +3,6 @@ from typing import Optional, Any
 
 from aiogram.fsm.storage.memory import MemoryStorage
 
-
 from database.base import AbstractKeyValueDatabase
 
 
@@ -11,6 +10,7 @@ class MemoryStorageManager(AbstractKeyValueDatabase):
     """
     Implementation of a key–value Memory store.
     """
+
     def __init__(self) -> None:
         self.storage = MemoryStorage()
 
@@ -26,5 +26,3 @@ class MemoryStorageManager(AbstractKeyValueDatabase):
 
     async def _get_from_data(self, key: str) -> Optional[Any]:
         pass
-
-

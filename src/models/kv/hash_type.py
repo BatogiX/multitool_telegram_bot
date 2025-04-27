@@ -8,4 +8,6 @@ class BaseHashType(BaseKeyValue):
 
 
 class SetHashType(BaseKeyValueSet, BaseHashType): ...
+
+
 class GetHashType(BaseKeyValueGet, BaseHashType): ...

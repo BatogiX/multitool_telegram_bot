@@ -11,3 +11,5 @@ class PasswordManagerStates(StatesGroup):
     DeletePassword = State()
     ImportFromFile = State()
     ExportToFile = State()
+    ChangeMasterPassword = State()
+    UpdateCredentials = State()

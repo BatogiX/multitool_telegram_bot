@@ -43,6 +43,7 @@ async def delete_fsm_message(message_id: int, message: types.Message) -> None:
     except TelegramBadRequest:
         pass
 
+
 def escape_markdown_v2(text: str) -> str:
     return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
 

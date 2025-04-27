@@ -1,18 +1,17 @@
 import hashlib
-from typing import Callable
+from typing import Callable, Optional
 
 import aiofiles
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State
 
-from database import db_manager
+from database import db
 from models.callback_data import HashMenuCallbackData
 from models.states import HashMenuStates
 from utils import download_file, delete_file
 
 DEFAULT_CHUNK_SIZE = 65536
-
 
 _HASH_TO_STATE_MAPPING: dict[str, State] = {
     HashMenuCallbackData.hash_types.MD5: HashMenuStates.MD5,
@@ -46,7 +45,7 @@ async def _calculate_file_hash(file_path: str, hash_type: str) -> str:
     return await _compute_file_hash(file_path, hash_func)
 
 
-async def _compute_file_hash(file_path: str, hash_func: Callable) -> str | None:
+async def _compute_file_hash(file_path: str, hash_func: Callable) -> Optional[str]:
     """Asynchronously compute the file's hash."""
     hash_obj = hash_func()
     async with aiofiles.open(file_path, "rb") as f:
@@ -58,7 +57,7 @@ async def _compute_file_hash(file_path: str, hash_func: Callable) -> str | None:
 
 
 async def check_hash(state: FSMContext, message: types.Message) -> tuple[bool, str, str, str]:
-    hash_type = await db_manager.key_value_db.get_hash_type(state)
+    hash_type = await db.key_value.get_hash_type(state)
     file_path, expected_hash = await _get_file_path_and_hash(message)
 
     computed_hash = await _calculate_file_hash(file_path, hash_type)

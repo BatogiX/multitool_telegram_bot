@@ -1,9 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 
-from database import db_manager
-from keyboards.buttons.pwd_mgr_kb import inline_query_search_service
-from keyboards.inline import pwd_mgr_inline_search
+from database import db
+from keyboards.buttons.pwd_mgr import inline_query_search_service
+import keyboards.inline
 from utils import add_protocol
 
 inline_query_router = Router(name=__name__)
@@ -17,13 +17,15 @@ async def search(inline_query: InlineQuery):
         print(search_text)
         return
 
-    services: list[str] = await db_manager.relational_db.inline_search_service(user_id=inline_query.from_user.id, service=search_text)
+    services = await db.relational.inline_search_service(
+        user_id=inline_query.from_user.id, service=search_text)
     articles = [
         InlineQueryResultArticle(
             id=service,
             title=service,
-            input_message_content=InputTextMessageContent(message_text=f"🔎 {add_protocol(service)}"),
-            reply_markup=pwd_mgr_inline_search(service)
+            input_message_content=InputTextMessageContent(
+                message_text=f"🔎 {add_protocol(service)}"),
+            reply_markup=keyboards.inline.pwd_mgr_inline_search_ikm(service)
         ) for service in services
     ]
 

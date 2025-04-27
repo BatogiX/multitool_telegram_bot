@@ -8,4 +8,6 @@ class BasePasswordsOffset(BaseKeyValue):
 
 
 class SetPasswordsOffset(BaseKeyValueSet, BasePasswordsOffset): ...
+
+
 class GetPasswordsOffset(BaseKeyValueGet, BasePasswordsOffset): ...

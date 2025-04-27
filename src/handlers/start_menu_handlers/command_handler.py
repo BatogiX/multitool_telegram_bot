@@ -6,15 +6,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.utils.markdown import text
 
-from database import db_manager
-from keyboards.inline import start_menu
+from database import db
+import keyboards.inline
 
 command_router = Router(name=__name__)
 
 
 @command_router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> Message:
-    asyncio.create_task(db_manager.relational_db.create_user_if_not_exists(
+    asyncio.create_task(db.relational.create_user_if_not_exists(
         user_id=message.from_user.id,
         user_name=message.from_user.username,
         full_name=message.from_user.full_name,
@@ -22,7 +22,7 @@ async def cmd_start(message: Message, state: FSMContext) -> Message:
     ))
     return await message.answer(
         text="Hello! I'm your friendly bot. How can I assist you today?",
-        reply_markup=start_menu()
+        reply_markup=keyboards.inline.start_menu_ikm
     )
 
 

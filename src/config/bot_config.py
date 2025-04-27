@@ -1,7 +1,8 @@
 import os
+from typing import Literal
 
-from pydantic_settings import BaseSettings
 from pydantic import Field, AliasChoices
+from pydantic_settings import BaseSettings
 
 from config.settings import base_settings_config
 
@@ -9,8 +10,9 @@ from config.settings import base_settings_config
 class BotConfig(BaseSettings):
     model_config = base_settings_config(prefix="BOT_")
 
-    token: str = ""           # Bot token mandatory attribute
+    token: str = ""  # Bot token mandatory attribute
     admins: set[int] = set()  # JSON list of admin user IDs, e.g., [123456789, 987654321]
+    mode: Literal["polling", "webhook"] = "polling"
     sep: str = " "
     dynamic_buttons_limit: int = Field(default=16, ge=1)
     dynamical_buttons_per_row: int = Field(default=2, ge=1)
@@ -28,5 +30,6 @@ class BotConfig(BaseSettings):
     webhook_path: str = "/webhook"
     webhook_secret: str = os.urandom(32).hex()
     webhook_url: str = ""
+
 
 bot_cfg: BotConfig = BotConfig()

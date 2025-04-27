@@ -5,8 +5,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 
-from database import db_manager
 from config import bot_cfg
+from database import db
 from handlers import handlers_router
 from middleware import AutoDeleteMessagesMiddleware
 
@@ -23,14 +23,14 @@ def setup_dispatcher() -> None:
 
 async def on_startup() -> None:
     logging.info("Bot is starting up...")
-    await db_manager.initialize()
-    dispatcher.fsm.storage = db_manager.key_value_db.storage
+    await db.initialize()
+    dispatcher.fsm.storage = db.key_value.storage
 
 
 async def on_shutdown() -> None:
     logging.info("Bot is shutting down...")
     await bot.session.close()
-    await db_manager.close()
+    await db.close()
 
 
 async def start_polling_mode() -> None:
@@ -70,16 +70,20 @@ def start_webhook_mode() -> None:
     setup_dispatcher()
     dispatcher.startup.register(set_webhook)
     app = web.Application()
-    webhook_requests_handler = SimpleRequestHandler(dispatcher=dispatcher, bot=bot, secret_token=bot_cfg.webhook_secret)
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dispatcher, bot=bot, secret_token=bot_cfg.webhook_secret
+    )
     webhook_requests_handler.register(app, path=bot_cfg.webhook_path)
     setup_application(app, dispatcher, bot=bot)
     web.run_app(app, host=bot_cfg.web_server_host, port=bot_cfg.web_server_port)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
-    if bot_cfg.webhook_url:
+    if bot_cfg.mode == "webhook":
         start_webhook_mode()
-    else:
+    elif bot_cfg.mode == "polling":
         asyncio.run(start_polling_mode())

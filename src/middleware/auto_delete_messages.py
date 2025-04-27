@@ -1,25 +1,26 @@
+import asyncio
 import logging
 from collections import defaultdict
-from typing import Callable, Dict, Any, Awaitable, Union, Set, Optional
+from typing import Callable, Any, Awaitable, Union, Set, Optional
 
-import asyncio
 from aiogram import BaseMiddleware
-from aiogram.types import Message, Update
 from aiogram.exceptions import TelegramRetryAfter
+from aiogram.types import Message, Update
+
 from config import bot_cfg
 
 
 class AutoDeleteMessagesMiddleware(BaseMiddleware):
     def __init__(self):
-        self.message_ids: Dict[int, Set[int]] = defaultdict(set)  # chat_id -> message_ids
-        self.tasks: Dict[int, asyncio.Task] = {}                  # chat_id -> deletion task
+        self.message_ids: dict[int, Set[int]] = defaultdict(set)  # chat_id -> message_ids
+        self.tasks: dict[int, asyncio.Task] = {}  # chat_id -> deletion task
         logging.info(f"Middleware {self.__class__.__name__} started")
 
     async def __call__(
-            self,
-            handler: Callable[[Update, Dict[str, Any]], Awaitable[Union[Message, tuple[Message, Message]]]],
-            event: Update,
-            data: Dict[str, Any]
+        self,
+        handler: Callable[[Update, dict], Awaitable[Union[Message, tuple[Message, Message]]]],
+        event: Update,
+        data: dict[str, Any]
     ) -> Any:
         if event.inline_query:
             return await handler(event, data)

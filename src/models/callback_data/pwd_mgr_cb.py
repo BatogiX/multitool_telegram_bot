@@ -5,9 +5,12 @@ from config import bot_cfg
 
 class PasswordManagerCallbackData:
     class Enter(CallbackData, prefix="pm_enter", sep=bot_cfg.sep): ...
+
     class ImportFromFile(CallbackData, prefix="pm_import_from_file", sep=bot_cfg.sep): ...
+
     class ExportToFile(CallbackData, prefix="pm_export_to_file", sep=bot_cfg.sep): ...
-    class ChangeMasterPassword(CallbackData, prefix="pm_change_master_password", sep=bot_cfg.sep): ...
+
+    class ChangeMasterPassword(CallbackData, prefix="pm_change_master_pwd", sep=bot_cfg.sep): ...
 
     class EnterServices(CallbackData, prefix="pmesvcs", sep=bot_cfg.sep):
         services_offset: int
@@ -46,10 +49,6 @@ class PasswordManagerCallbackData:
         login: str
         password: str
 
-    class ChangePassword(CallbackData, prefix="pmcpwd", sep=bot_cfg.sep):
-        login: str
-        password: str
-
-    class ChangeLogin(CallbackData, prefix="pmclog", sep=bot_cfg.sep):
+    class UpdateCredentials(CallbackData, prefix="pmucrd", sep=bot_cfg.sep):
         login: str
         password: str

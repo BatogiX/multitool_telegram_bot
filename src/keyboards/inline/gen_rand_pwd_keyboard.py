@@ -1,12 +1,15 @@
 from aiogram.types import InlineKeyboardMarkup
 
-from keyboards.buttons import gen_return_to_start_menu_button, gen_regenerate_rand_pwd_button
+from keyboards.buttons import gen_rand_pwd, start_menu
 
 
-def gen_rand_pwd() -> InlineKeyboardMarkup:
-    return_to_start_menu_button = gen_return_to_start_menu_button()
-    regenerate_rand_pwd_button = gen_regenerate_rand_pwd_button()
+def _rand_pwd_ikm() -> InlineKeyboardMarkup:
+    btn_return_to_start_menu = start_menu.btn_return_to_start_menu
+    btn_regenerate_rand_pwd = gen_rand_pwd.btn_regenerate_rand_pwd
 
     return InlineKeyboardMarkup(inline_keyboard=[
-        [return_to_start_menu_button, regenerate_rand_pwd_button]
+        [btn_return_to_start_menu, btn_regenerate_rand_pwd]
     ])
+
+
+rand_pwd_ikm: InlineKeyboardMarkup = _rand_pwd_ikm()

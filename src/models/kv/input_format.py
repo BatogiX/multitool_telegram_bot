@@ -8,4 +8,6 @@ class BaseInputFormat(BaseKeyValue):
 
 
 class SetInputFormat(BaseKeyValueSet, BaseInputFormat): ...
+
+
 class GetInputFormat(BaseKeyValueGet, BaseInputFormat): ...

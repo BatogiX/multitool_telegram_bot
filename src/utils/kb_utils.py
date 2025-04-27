@@ -17,7 +17,9 @@ def create_button(text: str, callback_data: CallbackData) -> InlineKeyboardButto
     )
 
 
-def gen_dynamic_buttons(items: list, create_button_fn: Callable) -> list[list[InlineKeyboardButton]]:
+def gen_dynamic_buttons(
+    items: list, create_button_fn: Callable
+) -> list[list[InlineKeyboardButton]]:
     return [
         [
             create_button_fn(items[i + j])
