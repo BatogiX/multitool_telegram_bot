@@ -1,41 +1,29 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import os
-import re
+from typing import Iterable, overload
 
-from argon2.low_level import hash_secret_raw
+import argon2.low_level
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel
 
-from database import db_manager
 from config import crypto_cfg
-
-MSG_ERROR_MASTER_PASS = "Wrong Master Password"
-
-
-def _validate_master_password(master_password: str):
-    """
-    Validates if a master password meets security requirements.
-
-    :param master_password: The password to validate.
-    :raise ValueError: If the password does not meet the required complexity.
-    """
-    if len(master_password) < 12:
-        raise ValueError("The Master Password must contain at least 12 characters.")
-    if not re.search(r'[A-Z]', master_password):
-        raise ValueError("The Master Password must contain at least one capital letter.")
-    if not re.search(r'[a-z]', master_password):
-        raise ValueError("The Master Password must contain at least one lowercase letter.")
-    if not re.search(r'[0-9]', master_password):
-        raise ValueError("The Master Password must contain at least one digit.")
-    if not re.search(r'[\W_]', master_password):
-        raise ValueError("The Master Password must contain at least one special character.")
+from utils import add_protocol, strip_protocol
 
 
-def derive_key(master_password: str, salt: bytes) -> bytes:
+def gen_salt() -> bytes:
+    return os.urandom(crypto_cfg.argon2_random_salt_length)
+
+
+def gen_nonce() -> bytes:
+    return os.urandom(crypto_cfg.random_nonce_length)
+
+
+async def derive_key(master_password: str, salt: bytes) -> bytes:
     """
     Derive a 256-bit encryption key from a master password using Argon2.
 
@@ -43,8 +31,12 @@ def derive_key(master_password: str, salt: bytes) -> bytes:
     :param salt: Salt for key derivation.
     :return: A securely derived 256-bit key.
     """
-    raw_key = hash_secret_raw(
-        secret=master_password.encode(),
+    return await asyncio.to_thread(_derive_key, master_password, salt)
+
+
+def _derive_key(master_password: str, salt: bytes) -> bytes:
+    raw_key = argon2.low_level.hash_secret_raw(
+        secret=master_password.encode() + crypto_cfg.pepper,
         salt=salt,
         time_cost=crypto_cfg.argon2_time_cost,
         memory_cost=crypto_cfg.argon2_memory_cost,
@@ -55,100 +47,118 @@ def derive_key(master_password: str, salt: bytes) -> bytes:
     return raw_key
 
 
-class PasswordManagerCryptoHelper:
-    """Provides cryptographic utilities for password management."""
+class EncryptedRecord(BaseModel):
+    """
+    Represents an encrypted record containing a service name and ciphertext.
+    """
+    service: str
+    ciphertext: str
 
     @classmethod
-    async def validate_master_password(cls, master_password: str, user_id: int) -> None:
-        """
-        Verifies the correctness of a master password.
+    @overload
+    async def encrypt(
+            cls, decrypted_records: DecryptedRecord, derived_key: bytes
+    ) -> EncryptedRecord:
+        ...
 
-        :param master_password: The user-provided master password.
-        :param user_id: The ID of the user.
-        :raise ValueError: If the password does not meet the required complexity.
-        :raise InvalidTag: If the decryption fails due to an incorrect key or data corruption.
-        """
-        try:
-            _validate_master_password(master_password)
-        except ValueError:
-            raise
+    @classmethod
+    @overload
+    async def encrypt(
+            cls, decrypted_records: Iterable[DecryptedRecord], derived_key: bytes
+    ) -> list[EncryptedRecord]:
+        ...
 
-        rand_encrypted_record = await db_manager.relational_db.get_rand_password(user_id)
-        if rand_encrypted_record:
+    @classmethod
+    async def encrypt(cls, decrypted_records, derived_key: bytes):
+        """
+        Encrypts login credentials.
+
+        :param decrypted_records: The record containing login and password to be encrypted.
+        :param derived_key: Derived key from Argon2.
+        :return: An EncryptedRecord instance containing the service name and ciphertext.
+        """
+        if isinstance(decrypted_records, DecryptedRecord):
+            res = await asyncio.to_thread(cls._encrypt, [decrypted_records], derived_key)
+            return res[0]
+        else:
+            return await asyncio.to_thread(cls._encrypt, decrypted_records, derived_key)
+
+    @classmethod
+    def _encrypt(
+        cls,
+        decrypted_records: Iterable[DecryptedRecord],
+        derived_key: bytes
+    ) -> list[EncryptedRecord]:
+        aesgcm = AESGCM(derived_key)
+
+        encrypted_records = []
+        for decrypted_record in decrypted_records:
+            nonce = gen_nonce()
+            plaintext = decrypted_record.model_dump_json(exclude={"service"}).encode("utf-8")
+            ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+            b64 = base64.urlsafe_b64encode(nonce + ciphertext).decode()
+
+            service = strip_protocol(decrypted_record.service)
+            encrypted_records.append(cls(service=service, ciphertext=b64))
+        return encrypted_records
+
+
+class DecryptedRecord(BaseModel):
+    """
+    Represents a decrypted record containing a service name, login, and password.
+    """
+    service: str
+    login: str
+    password: str
+
+    @classmethod
+    @overload
+    async def decrypt(
+        cls, encrypted_records: EncryptedRecord, derived_key: bytes
+    ) -> DecryptedRecord: ...
+
+    @classmethod
+    @overload
+    async def decrypt(
+        cls, encrypted_records: Iterable[EncryptedRecord], derived_key: bytes
+    ) -> list[DecryptedRecord]: ...
+
+    @classmethod
+    async def decrypt(cls, encrypted_records, derived_key: bytes):
+        """
+        Decrypts an `EncryptedRecord` and returns a `DecryptedRecord`.
+
+        :param encrypted_records: The encrypted records to decrypt.
+        :param derived_key: The user's master password used to derive the decryption key.
+        :return: A DecryptedRecord containing the service, login, and password.
+        :raises InvalidTag: If the decryption fails due to an incorrect key or data corruption.
+        """
+        if isinstance(encrypted_records, EncryptedRecord):
+            res = await asyncio.to_thread(cls._decrypt, [encrypted_records], derived_key)
+            return res[0]
+        else:
+            return await asyncio.to_thread(cls._decrypt, encrypted_records, derived_key)
+
+    @classmethod
+    def _decrypt(
+        cls,
+        encrypted_records: Iterable[EncryptedRecord],
+        derived_key: bytes
+    ) -> list[DecryptedRecord]:
+        aesgcm = AESGCM(derived_key)
+
+        decrypted_records = []
+        for encrypted_record in encrypted_records:
+            b64 = base64.urlsafe_b64decode(encrypted_record.ciphertext)
+            nonce = b64[:crypto_cfg.random_nonce_length]
+            ciphertext = b64[crypto_cfg.random_nonce_length:]
+
             try:
-                cls.DecryptedRecord.decrypt(rand_encrypted_record, master_password)
-            except InvalidTag:
-                raise InvalidTag(MSG_ERROR_MASTER_PASS)
-
-    class EncryptedRecord(BaseModel):
-        """
-        Represents an encrypted record containing a service name and ciphertext.
-        """
-        service: str
-        ciphertext: str
-
-        @classmethod
-        def encrypt(
-            cls,
-            decrypted_record: PasswordManagerCryptoHelper.DecryptedRecord,
-            master_password: str
-        ) -> PasswordManagerCryptoHelper.EncryptedRecord:
-            """
-            Encrypts login credentials.
-
-            :param decrypted_record: The record containing login and password to be encrypted.
-            :param master_password: The master password used for key derivation.
-            :return: An EncryptedRecord instance containing the service name and ciphertext.
-            """
-            salt = os.urandom(crypto_cfg.argon2_random_salt_length)
-            nonce = os.urandom(crypto_cfg.random_nonce_length)
-
-            derived_key = derive_key(master_password, salt)
-            aesgcm = AESGCM(derived_key)
-
-            plaintext = json.dumps({
-                "login": decrypted_record.login,
-                "password": decrypted_record.password
-            }).encode()
-
-            ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-            ciphertext_with_salt_and_nonce_b64 = base64.urlsafe_b64encode(nonce + ciphertext + salt).decode()
-            return cls(service=decrypted_record.service, ciphertext=ciphertext_with_salt_and_nonce_b64)
-
-    class DecryptedRecord(BaseModel):
-        """
-        Represents a decrypted record containing a service name, login, and password.
-        """
-        service: str
-        login: str
-        password: str
-
-        @classmethod
-        def decrypt(
-            cls,
-            encrypted_record: PasswordManagerCryptoHelper.EncryptedRecord,
-            master_password: str
-        ) -> PasswordManagerCryptoHelper.DecryptedRecord:
-            """
-            Decrypts an `EncryptedRecord` and returns a `DecryptedRecord`.
-
-            :param encrypted_record: The encrypted record to decrypt.
-            :param master_password: The user's master password used to derive the decryption key.
-            :return: A DecryptedRecord containing the service, login, and password.
-            :raises InvalidTag: If the decryption fails due to an incorrect key or data corruption.
-            """
-            data = base64.urlsafe_b64decode(encrypted_record.ciphertext)
-
-            nonce = data[:crypto_cfg.random_nonce_length]
-            ciphertext = data[crypto_cfg.random_nonce_length:-crypto_cfg.argon2_random_salt_length]
-            salt = data[-crypto_cfg.argon2_random_salt_length:]
-
-            derived_key = derive_key(master_password, salt)
-            aesgcm = AESGCM(derived_key)
-            try:
-                plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+                plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data=None)
             except InvalidTag:
                 raise
 
-            login, password = json.loads(plaintext).values()
-            return cls(service=encrypted_record.service, login=login, password=password)
+            data = json.loads(plaintext.decode("utf-8"))
+            data["service"] = add_protocol(encrypted_record.service)
+            decrypted_records.append(cls(**data))
+        return decrypted_records

@@ -1,247 +1,370 @@
+import asyncio
+from typing import Union
+
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from database import db_manager
-from .callback_handler import SERVICES_TEXT, ENTER_TEXT, NO_SERVICES_TEXT, CONFIRMATION_TEXT, SERVICE_TEXT
-from keyboards import Keyboards
+import keyboards.inline
+from database import db
+import helpers.pwd_mgr_helper as helper
+import helpers.pwd_mgr_helper.texts as texts
+from helpers.pwd_mgr_helper import DecryptedRecord, EncryptedRecord
 from models.states import PasswordManagerStates
-from utils import StorageUtils
-from helpers import PasswordManagerHelper as PwdMgrHelper
-
-DecryptedRecord = PwdMgrHelper.DecryptedRecord
-
-MAX_CHAR_LIMIT = 64
-MSG_ERROR_INVALID_FORMAT = "Wrong format"
-MSG_ERROR_LONG_INPUT = "Login or password is too long"
-MSG_ERROR_MASTER_PASS = "Wrong Master Password"
-MSG_ERROR_NOT_CONFIRMED = "You didn't confirm the action"
-IMPORT_FROM_FILE_TEXT = "Passwords were successfully imported from file\n\n"
-EXPORT_TO_FILE_TEXT = "Passwords were successfully exported to file\n\n"
-PASSWORD_DELETED_TEXT = "Password was deleted successfully\n\n"
-CHOOSE_LOGIN_TEXT = "\nChoose your login to see password"
-ALL_SERVICES_DELETED_TEXT = "All services deleted successfully"
-SERVICE_DELETED_TEXT = "Service was deleted successfully\n\n"
 
 fsm_router = Router(name=__name__)
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.CreateService), F.text)
 async def create_service(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
+    current_state = await helper.handle_message_deletion(state, message)
 
     try:
-        master_password, service, login, password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=4)
-        PwdMgrHelper.has_valid_input_length(login, password)
-        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
+        user_input = helper.split_user_input(user_input=message.text, maxsplit=4)
+        master_password, service, login, password = user_input
+        helper.has_valid_input_length(login, password)
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
 
-    await StorageUtils.set_service(state, service)
+    await db.key_value.set_service(service, state)
+
     decrypted_record = DecryptedRecord(service=service, login=login, password=password)
-    await PwdMgrHelper.create_password_record(decrypted_record, message.from_user.id, master_password)
+    await helper.create_password_record(decrypted_record, message.from_user.id, derived_key)
     return await message.answer(
-        text=SERVICE_TEXT + service + CHOOSE_LOGIN_TEXT,
+        text=texts.gen_passwords_text(service, pwds_offset=0),
         parse_mode="Markdown",
-        reply_markup=Keyboards.inline.pwd_mgr_passwords(
+        reply_markup=keyboards.inline.pwd_mgr_passwords_ikm(
             decrypted_records=[decrypted_record],
             service=service,
             pwd_offset=0,
-            services_offset=await StorageUtils.get_pm_services_offset(state)
+            services_offset=await db.key_value.get_services_offset(state)
         )
     )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.CreatePassword), F.text)
 async def create_password(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
+    current_state = await helper.handle_message_deletion(state, message)
 
     try:
-        master_password, login, password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=3)
-        PwdMgrHelper.has_valid_input_length(login, password)
-        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
+        user_input = helper.split_user_input(user_input=message.text, maxsplit=3)
+        master_password, login, password = user_input
+        helper.has_valid_input_length(login, password)
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
 
-    service = await StorageUtils.get_service(state)
-    await PwdMgrHelper.create_password_record(DecryptedRecord(service=service, login=login, password=password), message.from_user.id, master_password)
-    decrypted_records, pwd_offset, services_offset, text = await PwdMgrHelper.show_service_logins(message, state, master_password, service)
+    service = await db.key_value.get_service(state)
+    await helper.create_password_record(
+        decrypted_record=DecryptedRecord(service=service, login=login, password=password),
+        user_id=message.from_user.id,
+        derived_key=derived_key
+    )
+    decrypted_records, pwds_offset, services_offset = await helper.show_service_logins(
+        message, state, derived_key, service
+    )
     return await message.answer(
-        text=text,
-        reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwd_offset, services_offset),
-        parse_mode="Markdown"
+        text=texts.gen_passwords_text(service, pwds_offset),
+        parse_mode="Markdown",
+        reply_markup = keyboards.inline.pwd_mgr_passwords_ikm(
+            decrypted_records, service, pwds_offset, services_offset
+        )
     )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.DeletePassword), F.text)
 async def delete_password(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
+    current_state = await helper.handle_message_deletion(state, message)
 
     try:
-        master_password, login, password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=3)
-        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
+        user_input = helper.split_user_input(user_input=message.text, maxsplit=3)
+        master_password, login, password = user_input
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
 
-    service = await StorageUtils.get_service(state)
-    encrypted_records = await db_manager.relational_db.get_passwords(
+    service, pwds_offset, services_offset = await db.key_value.execute_batch(
+        db.key_value.get_service(state),
+        db.key_value.get_pwds_offset(state),
+        db.key_value.get_services_offset(state)
+    )
+    encrypted_records = await db.relational.get_passwords(
         user_id=message.from_user.id,
         service=service,
-        offset=0
+        offset=pwds_offset
     )
 
-    decrypted_records = []
-    for encrypted_record in encrypted_records:
-        decrypted_record = DecryptedRecord.decrypt(encrypted_record=encrypted_record, master_password=master_password)
+    decrypted_records = await DecryptedRecord.decrypt(
+        encrypted_records=encrypted_records, derived_key=derived_key
+    )
+    for i, decrypted_record in enumerate(decrypted_records):
         if decrypted_record.login == login and decrypted_record.password == password:
-            await db_manager.relational_db.delete_password(message.from_user.id, service, encrypted_record.ciphertext)
-            continue
-        decrypted_records.append(decrypted_record)
+            encrypted_record = encrypted_records[i]
+            await db.relational.delete_password(
+                message.from_user.id, service, encrypted_record.ciphertext
+            )
+            decrypted_records.pop(i)
+            break
 
     if decrypted_records:
-        offset = await StorageUtils.get_pm_pwd_offset(state)
-        services_offset = await StorageUtils.get_pm_services_offset(state)
         return await message.answer(
-            text=PASSWORD_DELETED_TEXT + SERVICE_TEXT + service + CHOOSE_LOGIN_TEXT,
-            reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, offset, services_offset),
-            parse_mode="Markdown"
+            text=texts.PASSWORD_DELETED_TEXT + texts.gen_passwords_text(service, pwds_offset),
+            parse_mode="Markdown",
+            reply_markup=keyboards.inline.pwd_mgr_passwords_ikm(
+                decrypted_records, service, pwds_offset, services_offset
+            )
         )
     else:
-        services = await db_manager.relational_db.get_services(message.from_user.id, offset=0)
+        services = await db.relational.get_services(message.from_user.id, offset=0)
         if services:
             return await message.answer(
-                text=PASSWORD_DELETED_TEXT + SERVICES_TEXT,
-                reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
+                text=texts.PASSWORD_DELETED_TEXT + texts.gen_services_text(services_offset=0),
+                reply_markup=keyboards.inline.pwd_mgr_services_ikm(services, services_offset=0)
             )
         else:
             return await message.answer(
-                text=PASSWORD_DELETED_TEXT + NO_SERVICES_TEXT,
-                reply_markup=Keyboards.inline.pwd_mgr_no_services()
+                text=texts.PASSWORD_DELETED_TEXT + texts.NO_SERVICES_TEXT,
+                reply_markup=keyboards.inline.pwd_mgr_no_services_ikm
             )
+
+
+@fsm_router.message(StateFilter(PasswordManagerStates.UpdateCredentials), F.text)
+async def update_credentials(message: Message, state: FSMContext) -> Message:
+    current_state = await helper.handle_message_deletion(state, message)
+
+    try:
+        user_input = helper.split_user_input(user_input=message.text, maxsplit=5)
+        master_password, login, password, new_login, new_password = user_input
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
+    except Exception as e:
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
+
+    service, pwds_offset, services_offset = await db.key_value.execute_batch(
+        db.key_value.get_service(state),
+        db.key_value.get_pwds_offset(state),
+        db.key_value.get_services_offset(state)
+    )
+    encrypted_records = await db.relational.get_passwords(
+        user_id=message.from_user.id,
+        service=service,
+        offset=pwds_offset
+    )
+
+    decrypted_records = await DecryptedRecord.decrypt(encrypted_records, derived_key)
+    for i, decrypted_record in enumerate(decrypted_records):
+        if decrypted_record.login == login and decrypted_record.password == password:
+            new_pwd_record = await EncryptedRecord.encrypt(
+                [DecryptedRecord(
+                    service=service,
+                    login=new_login,
+                    password=new_password
+                )],
+                derived_key
+            )
+            await db.relational.update_credentials(
+                user_id=message.from_user.id,
+                service=service,
+                current_ciphertext=encrypted_records[i].ciphertext,
+                new_ciphertext=new_pwd_record[0].ciphertext
+            )
+            break
+
+    return await message.edit_text(
+        text=texts.gen_credentials(service, new_login, new_password),
+        parse_mode="MarkdownV2",
+        reply_markup=keyboards.inline.pwd_mgr_password_ikm(
+            service, new_login, new_password, pwds_offset, services_offset
+        )
+    )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.EnterService), F.text)
 async def service_enter(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
-    try:
-        master_password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=1)
-        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
-    except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
+    current_state = await helper.handle_message_deletion(state, message)
 
-    service = await StorageUtils.get_service(state)
-    decrypted_records, pwd_offset, services_offset, text = await PwdMgrHelper.show_service_logins(message, state, master_password, service)
+    try:
+        master_password = helper.split_user_input(user_input=message.text, maxsplit=1)[0]
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
+    except Exception as e:
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
+
+    service = await db.key_value.get_service(state)
+    decrypted_records, pwds_offset, services_offset = await helper.show_service_logins(
+        message, state, derived_key, service
+    )
     return await message.answer(
-        text=text,
-        reply_markup=Keyboards.inline.pwd_mgr_passwords(decrypted_records, service, pwd_offset, services_offset),
-        parse_mode="Markdown"
+        text=texts.gen_passwords_text(service, pwds_offset),
+        parse_mode="Markdown",
+        reply_markup=keyboards.inline.pwd_mgr_passwords_ikm(
+            decrypted_records, service, pwds_offset, services_offset
+        )
     )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ChangeService), F.text)
 async def change_service(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
+    current_state = await helper.handle_message_deletion(state, message)
 
     try:
-        new_service = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=1)
+        master_password, new_service = helper.split_user_input(user_input=message.text, maxsplit=2)
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
 
-    new_service = new_service[0]
-    old_service = await StorageUtils.get_service(state)
-
-    await db_manager.relational_db.change_service(
+    old_service, services_offset, pwds_offset = await db.key_value.execute_batch(
+        db.key_value.get_service(state),
+        db.key_value.get_services_offset(state),
+        db.key_value.get_pwds_offset(state)
+    )
+    await db.relational.change_service(
         new_service=new_service,
         user_id=message.from_user.id,
         old_service=old_service
     )
 
-    services = await db_manager.relational_db.get_services(user_id=message.from_user.id, offset=0)
+    decrypted_records = await DecryptedRecord.decrypt(
+        await db.relational.get_passwords(message.from_user.id, new_service, offset=0),
+        derived_key
+    )
     return await message.answer(
-        text=SERVICES_TEXT,
-        reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
+        text=texts.gen_passwords_text(new_service, pwds_offset),
+        parse_mode="Markdown",
+        reply_markup=keyboards.inline.pwd_mgr_passwords_ikm(
+            decrypted_records, new_service, pwds_offset, services_offset
+        )
     )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.DeleteServices), F.text)
 async def delete_services(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
+    current_state = await helper.handle_message_deletion(state, message)
 
     try:
-        master_password = await PwdMgrHelper.split_user_input(user_input=message.text, maxsplit=1)
-        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
+        master_password = helper.split_user_input(user_input=message.text, maxsplit=1)[0]
+        await helper.validate_master_password(master_password, message.from_user.id)
     except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
 
-    await db_manager.relational_db.delete_services(message.from_user.id)
+    await db.relational.delete_services(message.from_user.id)
     return await message.answer(
-        text=ALL_SERVICES_DELETED_TEXT,
-        reply_markup=Keyboards.inline.pwd_mgr_no_services()
+        text=texts.ALL_SERVICES_DELETED_TEXT,
+        reply_markup=keyboards.inline.pwd_mgr_no_services_ikm
     )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.DeleteService), F.text)
 async def delete_service(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
+    current_state = await helper.handle_message_deletion(state, message)
 
-    match message.text.upper():
-        case CONFIRMATION_TEXT.upper():
-            service = await StorageUtils.get_service(state)
-            await db_manager.relational_db.delete_service(message.from_user.id, service)
+    try:
+        master_password = helper.split_user_input(user_input=message.text, maxsplit=1)[0]
+        await helper.validate_master_password(master_password, message.from_user.id)
+    except Exception as e:
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
 
-            services = await db_manager.relational_db.get_services(user_id=message.from_user.id, offset=0)
-            if services:
-                return await message.answer(
-                    text=SERVICE_DELETED_TEXT + SERVICES_TEXT,
-                    reply_markup=Keyboards.inline.pwd_mgr_services(services)
-                )
-            else:
-                return await message.answer(
-                    text=SERVICE_DELETED_TEXT + NO_SERVICES_TEXT,
-                    reply_markup=Keyboards.inline.pwd_mgr_no_services()
-                )
-        case _:
-            return await PwdMgrHelper.resend_user_input_request(state, message, MSG_ERROR_NOT_CONFIRMED, current_state)
+    service = await db.key_value.get_service(state)
+
+    coroutines = [
+        db.relational.get_services(message.from_user.id, offset=0),
+        db.relational.delete_service(message.from_user.id, service)
+    ]
+    services, _ = await asyncio.gather(*coroutines)
+
+    if services:
+        return await message.answer(
+            text=texts.SERVICE_DELETED_TEXT + texts.gen_services_text(services_offset=0),
+            reply_markup=keyboards.inline.pwd_mgr_services_ikm(services, services_offset=0)
+        )
+    else:
+        return await message.answer(
+            text=texts.SERVICE_DELETED_TEXT + texts.NO_SERVICES_TEXT,
+            reply_markup=keyboards.inline.pwd_mgr_no_services_ikm
+        )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ImportFromFile), F.document)
 async def import_from_file(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
+    current_state = await helper.handle_message_deletion(state, message)
 
     try:
-        master_password = await PwdMgrHelper.split_user_input(user_input=message.caption, maxsplit=1)
-        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
+        master_password = helper.split_user_input(user_input=message.caption, maxsplit=1)[0]
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
 
     try:
-        await PwdMgrHelper.process_importing_from_file(message=message, master_password=master_password)
+        await helper.process_importing_from_file(message=message, derived_key=derived_key)
     except Exception as e:
+        record = await db.relational.get_rand_password(message.from_user.id)
         return await message.answer(
-            text=f"{str(e)}\n\n{ENTER_TEXT}",
-            reply_markup=Keyboards.inline.pwd_mgr_menu()
+            text=f"{str(e)}\n\n{texts.ENTER_TEXT}",
+            reply_markup=keyboards.inline.pwd_mgr_menu_ikm(record)
         )
-    services = await db_manager.relational_db.get_services(message.from_user.id, offset=0)
+
+    services = await db.relational.get_services(message.from_user.id, offset=0)
     return await message.answer(
-        text=IMPORT_FROM_FILE_TEXT + SERVICES_TEXT,
-        reply_markup=Keyboards.inline.pwd_mgr_services(services=services)
+        text=texts.IMPORT_FROM_FILE_FSM + texts.gen_services_text(services_offset=0),
+        reply_markup=keyboards.inline.pwd_mgr_services_ikm(services, services_offset=0)
     )
 
 
 @fsm_router.message(StateFilter(PasswordManagerStates.ExportToFile), F.text)
-async def export_to_file(message: Message, state: FSMContext) -> Message:
-    current_state = await PwdMgrHelper.handle_message_deletion(state, message)
-    
+async def export_to_file(
+    message: Message, state: FSMContext
+) -> Union[tuple[Message, Message], Message]:
+    current_state = await helper.handle_message_deletion(state, message)
+
     try:
-        master_password = await PwdMgrHelper.split_user_input(user_input=message.caption, maxsplit=1)
-        await PwdMgrHelper.validate_master_password(master_password, message.from_user.id)
+        master_password = helper.split_user_input(user_input=message.caption, maxsplit=1)[0]
+        derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
-        return await PwdMgrHelper.resend_user_input_request(state, message, str(e), current_state)
-    
-    document = await PwdMgrHelper.process_exporting_to_file(master_password=master_password, user_id=message.from_user.id)
-    return await message.answer_document(
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
+
+    document = await helper.process_exporting_to_file(
+        derived_key=derived_key, user_id=message.from_user.id
+    )
+    document_message = await message.answer_document(
         document=document,
-        caption=EXPORT_TO_FILE_TEXT + ENTER_TEXT,
-        reply_markup=Keyboards.inline.pwd_mgr_menu()
+        caption=texts.EXPORT_TO_FILE_TEXT,
+    )
+    record = await db.relational.get_rand_password(message.from_user.id)
+    message = await message.answer(
+        text=texts.ENTER_TEXT,
+        reply_markup=keyboards.inline.pwd_mgr_menu_ikm(record)
+    )
+    return document_message, message
+
+
+@fsm_router.message(StateFilter(PasswordManagerStates.ChangeMasterPassword), F.text)
+async def change_master_password(message: Message, state: FSMContext) -> Message:
+    current_state = await helper.handle_message_deletion(state, message)
+
+    try:
+        user_input = helper.split_user_input(user_input=message.text, maxsplit=2)
+        old_master_password, new_master_password = user_input
+        old_key = await helper.validate_master_password(old_master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, old_key)
+        new_key = await helper.validate_master_password(new_master_password, message.from_user.id)
+    except Exception as e:
+        return await helper.resend_user_input_request(state, message, str(e), current_state)
+
+    encrypted_records = await db.relational.export_passwords(message.from_user.id)
+    decrypted_records = await DecryptedRecord.decrypt(encrypted_records, old_key)
+    encrypted_records = await EncryptedRecord.encrypt(decrypted_records, new_key)
+    await db.relational.delete_passwords(message.from_user.id)
+    await db.relational.import_passwords(message.from_user.id, encrypted_records)
+
+    return await message.answer(
+        text=texts.ENTER_TEXT,
+        reply_markup=keyboards.inline.pwd_mgr_menu_ikm(encrypted_records[0])
     )

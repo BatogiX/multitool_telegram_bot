@@ -4,26 +4,32 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.utils.markdown import text
 
-from .callback_handler import HASH_MENU_ENTER_TEXT
-from keyboards import Keyboards
+from database import db
+from helpers.hash_menu_helper import check_hash
+import keyboards.inline
 from models.states import HashMenuStates
-from utils import BotUtils
-from helpers import HashMenuHelper
+from utils import delete_fsm_message
+from .callback_handler import HASH_MENU_ENTER_TEXT
 
 fsm_router = Router(name=__name__)
 
 
 @fsm_router.message(StateFilter(HashMenuStates), F.document)
 async def process_check_hash(message: Message, state: FSMContext) -> Message:
-    await state.set_state(None)
-    await BotUtils.delete_fsm_message(state, message)
+    coroutines = [
+        db.key_value.get_message_id_to_delete(state),
+        db.key_value.clear_state(state)
+    ]
+    message_id, _ = db.key_value.execute_batch(*coroutines)
+
+    await delete_fsm_message(message_id, message)
 
     try:
-        is_match, expected_hash, hash_type, computed_hash = await HashMenuHelper.check_hash(state, message)
+        is_match, expected_hash, hash_type, computed_hash = await check_hash(state, message)
     except Exception as e:
         return await message.answer(
             text=f"{str(e)}\n\n{HASH_MENU_ENTER_TEXT}",
-            reply_markup=Keyboards.inline.hash_menu()
+            reply_markup=keyboards.inline.hash_menu_ikm
         )
 
     status = "✅" if is_match else "❌"
@@ -38,6 +44,5 @@ async def process_check_hash(message: Message, state: FSMContext) -> Message:
     return await message.answer(
         text=response_text,
         parse_mode="Markdown",
-        reply_markup=Keyboards.inline.return_to_hash_menu_or_retry(hash_type)
+        reply_markup=keyboards.inline.return_to_hash_menu_or_retry_ikm(hash_type)
     )
-

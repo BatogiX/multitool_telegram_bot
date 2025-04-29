@@ -1,8 +1,13 @@
-from typing import Dict
+from models.kv.base import BaseKeyValueGet, BaseKeyValue, BaseKeyValueSet
 
 
-class Service:
-    key: str = "service"
+class BaseService(BaseKeyValue):
+    @property
+    def key(self) -> str:
+        return "service"
 
-    def __new__(cls, service_name: str) -> Dict[str, str]:
-        return {cls.key: service_name}
+
+class SetService(BaseKeyValueSet, BaseService): ...
+
+
+class GetService(BaseKeyValueGet, BaseService): ...

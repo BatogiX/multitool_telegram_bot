@@ -1,3 +1,5 @@
-from .manager import db_manager
+from .manager import db
 
-__all__ = "db_manager"
+__all__ = (
+    "db",
+)
