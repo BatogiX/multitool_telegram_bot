@@ -33,7 +33,7 @@ async def show_service_logins(
     derived_key: bytes,
     service: str
 ) -> tuple[list[DecryptedRecord], int, int]:
-    pwd_offset, services_offset = await asyncio.gather(
+    pwd_offset, services_offset = await db.key_value.execute_batch(
         db.key_value.get_pwds_offset(state),
         db.key_value.get_services_offset(state),
     )
@@ -62,8 +62,7 @@ def has_valid_service_length(service: str) -> None:
 async def create_password_record(
     decrypted_record: DecryptedRecord, user_id: int, derived_key: bytes
 ) -> None:
-    decrypted_record = [decrypted_record]
-    encrypted_record = (await EncryptedRecord.encrypt(decrypted_record, derived_key))[0]
+    encrypted_record = await EncryptedRecord.encrypt(decrypted_record, derived_key)
     await db.relational.create_password(
         user_id, encrypted_record.service, encrypted_record.ciphertext
     )
@@ -175,16 +174,16 @@ async def validate_master_password(master_password: str, user_id: int) -> bytes:
         raise
 
     salt = await db.relational.get_salt(user_id)
-    derived_key = await derive_key(master_password, salt)
+    return await derive_key(master_password, salt)
 
-    rand_encrypted_record = [await db.relational.get_rand_password(user_id)]
+
+async def validate_derived_key(user_id: int, derived_key: bytes) -> None:
+    rand_encrypted_record = await db.relational.get_rand_password(user_id)
     if rand_encrypted_record:
         try:
             await DecryptedRecord.decrypt(rand_encrypted_record, derived_key)
         except InvalidTag:
             raise InvalidTag(MSG_ERROR_MASTER_PASS)
-
-    return derived_key
 
 
 def _validate_master_password(master_password: str):

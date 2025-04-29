@@ -4,7 +4,7 @@ import asyncio
 import base64
 import json
 import os
-from typing import Iterable
+from typing import Iterable, overload
 
 import argon2.low_level
 from cryptography.exceptions import InvalidTag
@@ -55,11 +55,21 @@ class EncryptedRecord(BaseModel):
     ciphertext: str
 
     @classmethod
+    @overload
     async def encrypt(
-        cls,
-        decrypted_records: Iterable[DecryptedRecord],
-        derived_key: bytes
+            cls, decrypted_records: DecryptedRecord, derived_key: bytes
+    ) -> EncryptedRecord:
+        ...
+
+    @classmethod
+    @overload
+    async def encrypt(
+            cls, decrypted_records: Iterable[DecryptedRecord], derived_key: bytes
     ) -> list[EncryptedRecord]:
+        ...
+
+    @classmethod
+    async def encrypt(cls, decrypted_records, derived_key: bytes):
         """
         Encrypts login credentials.
 
@@ -67,7 +77,11 @@ class EncryptedRecord(BaseModel):
         :param derived_key: Derived key from Argon2.
         :return: An EncryptedRecord instance containing the service name and ciphertext.
         """
-        return await asyncio.to_thread(cls._encrypt, decrypted_records, derived_key)
+        if isinstance(decrypted_records, DecryptedRecord):
+            res = await asyncio.to_thread(cls._encrypt, [decrypted_records], derived_key)
+            return res[0]
+        else:
+            return await asyncio.to_thread(cls._encrypt, decrypted_records, derived_key)
 
     @classmethod
     def _encrypt(
@@ -98,20 +112,32 @@ class DecryptedRecord(BaseModel):
     password: str
 
     @classmethod
+    @overload
     async def decrypt(
-        cls,
-        encrypted_record: Iterable[EncryptedRecord],
-        derived_key: bytes
-    ) -> list[DecryptedRecord]:
+        cls, encrypted_records: EncryptedRecord, derived_key: bytes
+    ) -> DecryptedRecord: ...
+
+    @classmethod
+    @overload
+    async def decrypt(
+        cls, encrypted_records: Iterable[EncryptedRecord], derived_key: bytes
+    ) -> list[DecryptedRecord]: ...
+
+    @classmethod
+    async def decrypt(cls, encrypted_records, derived_key: bytes):
         """
         Decrypts an `EncryptedRecord` and returns a `DecryptedRecord`.
 
-        :param encrypted_record: The encrypted record to decrypt.
+        :param encrypted_records: The encrypted records to decrypt.
         :param derived_key: The user's master password used to derive the decryption key.
         :return: A DecryptedRecord containing the service, login, and password.
         :raises InvalidTag: If the decryption fails due to an incorrect key or data corruption.
         """
-        return await asyncio.to_thread(cls._decrypt, encrypted_record, derived_key)
+        if isinstance(encrypted_records, EncryptedRecord):
+            res = await asyncio.to_thread(cls._decrypt, [encrypted_records], derived_key)
+            return res[0]
+        else:
+            return await asyncio.to_thread(cls._decrypt, encrypted_records, derived_key)
 
     @classmethod
     def _decrypt(

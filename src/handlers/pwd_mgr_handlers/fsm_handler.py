@@ -25,6 +25,7 @@ async def create_service(message: Message, state: FSMContext) -> Message:
         master_password, service, login, password = user_input
         helper.has_valid_input_length(login, password)
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -53,6 +54,7 @@ async def create_password(message: Message, state: FSMContext) -> Message:
         master_password, login, password = user_input
         helper.has_valid_input_length(login, password)
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -82,6 +84,7 @@ async def delete_password(message: Message, state: FSMContext) -> Message:
         user_input = helper.split_user_input(user_input=message.text, maxsplit=3)
         master_password, login, password = user_input
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -97,7 +100,7 @@ async def delete_password(message: Message, state: FSMContext) -> Message:
     )
 
     decrypted_records = await DecryptedRecord.decrypt(
-        encrypted_record=encrypted_records, derived_key=derived_key
+        encrypted_records=encrypted_records, derived_key=derived_key
     )
     for i, decrypted_record in enumerate(decrypted_records):
         if decrypted_record.login == login and decrypted_record.password == password:
@@ -138,6 +141,7 @@ async def update_credentials(message: Message, state: FSMContext) -> Message:
         user_input = helper.split_user_input(user_input=message.text, maxsplit=5)
         master_password, login, password, new_login, new_password = user_input
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -187,6 +191,7 @@ async def service_enter(message: Message, state: FSMContext) -> Message:
     try:
         master_password = helper.split_user_input(user_input=message.text, maxsplit=1)[0]
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -210,6 +215,7 @@ async def change_service(message: Message, state: FSMContext) -> Message:
     try:
         master_password, new_service = helper.split_user_input(user_input=message.text, maxsplit=2)
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -291,6 +297,7 @@ async def import_from_file(message: Message, state: FSMContext) -> Message:
     try:
         master_password = helper.split_user_input(user_input=message.caption, maxsplit=1)[0]
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -319,6 +326,7 @@ async def export_to_file(
     try:
         master_password = helper.split_user_input(user_input=message.caption, maxsplit=1)[0]
         derived_key = await helper.validate_master_password(master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, derived_key)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
 
@@ -345,6 +353,7 @@ async def change_master_password(message: Message, state: FSMContext) -> Message
         user_input = helper.split_user_input(user_input=message.text, maxsplit=2)
         old_master_password, new_master_password = user_input
         old_key = await helper.validate_master_password(old_master_password, message.from_user.id)
+        await helper.validate_derived_key(message.from_user.id, old_key)
         new_key = await helper.validate_master_password(new_master_password, message.from_user.id)
     except Exception as e:
         return await helper.resend_user_input_request(state, message, str(e), current_state)
@@ -352,6 +361,7 @@ async def change_master_password(message: Message, state: FSMContext) -> Message
     encrypted_records = await db.relational.export_passwords(message.from_user.id)
     decrypted_records = await DecryptedRecord.decrypt(encrypted_records, old_key)
     encrypted_records = await EncryptedRecord.encrypt(decrypted_records, new_key)
+    await db.relational.delete_passwords(message.from_user.id)
     await db.relational.import_passwords(message.from_user.id, encrypted_records)
 
     return await message.answer(

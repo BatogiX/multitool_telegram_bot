@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Optional, Any, Coroutine, Union, override
 
@@ -95,6 +96,13 @@ class RedisManager(AbstractKeyValueDatabase):
     @override
     async def _delete(self, obj):
         await self.redis.delete(obj.key)
+
+    @override
+    async def _get_data(self, obj):
+        current_data = await self.redis.get(obj.data_key)
+        if current_data is None:
+            return {}
+        return json.loads(current_data)
 
     def _create_connection_pool(self) -> ConnectionPool:
         """

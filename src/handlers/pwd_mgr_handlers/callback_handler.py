@@ -239,7 +239,7 @@ async def update_credentials(
     credentials = texts.gen_credentials(service, login, password)
     text = escape_markdown_v2(texts.UPDATE_CREDENTIALS_TEXT)
     return await query.message.edit_text(
-        text=credentials + text,
+        text=credentials + "\n\n" + text,
         reply_markup=keyboards.inline.return_to_password_ikm(login, password),
         parse_mode="MarkdownV2"
     )

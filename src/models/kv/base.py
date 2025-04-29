@@ -14,6 +14,10 @@ class BaseKeyValue(ABC):
     @abstractmethod
     def key(self) -> str: ...
 
+    @property
+    def data_key(self) -> str:
+        return self.key_builder.build(self.storage_key, "data")
+
 
 class BaseKeyValueGet(BaseKeyValue, ABC): ...
 

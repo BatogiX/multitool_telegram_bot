@@ -98,11 +98,8 @@ class AbstractKeyValueDatabase(AbstractDatabase):
     async def clear_state(self, state):
         await self._delete(models.kv.GetState(state.key))
 
-    async def _get_data(self, obj):
-        current_data = await self._get(obj)
-        if current_data is None:
-            return {}
-        return json.loads(current_data)
+    @abstractmethod
+    async def _get_data(self, obj): ...
 
     async def _set_data(self, obj):
         current_data = await self._get_data(obj)
@@ -123,7 +120,6 @@ class AbstractKeyValueDatabase(AbstractDatabase):
             return Action(kv_cls(state.key))  # GetAction/GetFromDataAction/DeleteAction
         else:
             return Action(kv_cls(state.key, value, expire))  # SetAction/SetDataAction
-
 
     @staticmethod
     def _parse_args(coro):
@@ -228,6 +224,10 @@ class AbstractRelationDatabase(AbstractDatabase):
     @abstractmethod
     async def delete_password(self, user_id, service, ciphertext):
         """Delete a password for a user."""
+
+    @abstractmethod
+    async def delete_passwords(self, user_id):
+        """Delete passwords for a user."""
 
     @abstractmethod
     async def update_credentials(self, user_id, service, current_ciphertext, new_ciphertext):

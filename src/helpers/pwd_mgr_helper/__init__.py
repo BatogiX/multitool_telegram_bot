@@ -15,6 +15,7 @@ from .pwd_mgr_fsm import (
     process_exporting_to_file,
     process_importing_from_file,
     handle_message_deletion,
+    validate_derived_key
 )
 
 __all__ = (
@@ -32,4 +33,5 @@ __all__ = (
     'show_service_logins',
     'split_user_input',
     'validate_master_password',
+    'validate_derived_key'
 )
