@@ -1,4 +1,4 @@
-from models.kv.base import BaseKeyValueGet, BaseKeyValue, BaseKeyValueSet
+from models.kv.base import BaseKeyValue, BaseKeyValueGet, BaseKeyValueSet
 
 
 class BaseInputFormat(BaseKeyValue):

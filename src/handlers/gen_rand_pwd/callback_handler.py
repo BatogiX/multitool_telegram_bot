@@ -1,8 +1,8 @@
 from aiogram import Router
 from aiogram.types import CallbackQuery, Message
 
-from helpers.gen_rand_pwd_helper import generate_password
 import keyboards.inline
+from helpers.gen_rand_pwd import generate_password
 from models.callback_data import GenerateRandomPasswordCallback
 
 callback_router = Router(name=__name__)
@@ -14,6 +14,6 @@ async def generate_random_password(callback_query: CallbackQuery) -> Message:
 
     return await callback_query.message.edit_text(
         text=f"`{rand_pwd}`",
-        reply_markup=keyboards.inline.rand_pwd_ikm,
-        parse_mode="MarkdownV2"
+        reply_markup=keyboards.inline.RAND_PWD_IKM,
+        parse_mode="MarkdownV2",
     )

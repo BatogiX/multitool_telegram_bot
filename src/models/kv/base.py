@@ -1,13 +1,20 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Union
+from __future__ import annotations
 
-from aiogram.fsm.storage.base import StorageKey, DefaultKeyBuilder
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+from aiogram.fsm.storage.base import DefaultKeyBuilder
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from aiogram.fsm.storage.base import StorageKey
 
 
 class BaseKeyValue(ABC):
     key_builder = DefaultKeyBuilder()
 
-    def __init__(self, storage_key: StorageKey):
+    def __init__(self, storage_key: StorageKey) -> None:
         self.storage_key = storage_key
 
     @property
@@ -19,14 +26,17 @@ class BaseKeyValue(ABC):
         return self.key_builder.build(self.storage_key, "data")
 
 
-class BaseKeyValueGet(BaseKeyValue, ABC): ...
-
-
 class BaseKeyValueSet(BaseKeyValue, ABC):
-    def __init__(self, storage_key: StorageKey, value: Union[str, int], expire: Optional[int]):
+    def __init__(self, storage_key: StorageKey, value: str | int, expire: int | None) -> None:
         super().__init__(storage_key)
         self.value = value
         self.expire = expire
 
-    def dict(self) -> dict:
+    def dict(self) -> Mapping[str, str | int]:
         return {self.key: self.value}
+
+
+class BaseKeyValueGet(BaseKeyValue, ABC): ...
+
+
+class BaseKeyValueDelete(BaseKeyValue, ABC): ...

@@ -6,25 +6,26 @@ from .message_id_to_delete import GetMessageIdToDelete, SetMessageIdToDelete
 from .pwds_offset import GetPasswordsOffset, SetPasswordsOffset
 from .service import GetService, SetService
 from .services_offset import GetServicesOffset, SetServicesOffset
-from .state import GetState, SetState
+from .state import DeleteState, GetState, SetState
 
 __all__ = (
-    "GetHashType",
-    "SetHashType",
-    "GetMessageIdToDelete",
-    "SetMessageIdToDelete",
-    "GetInputFormat",
-    "SetInputFormat",
-    "GetService",
-    "SetService",
-    "GetServicesOffset",
-    "SetServicesOffset",
-    "GetPasswordsOffset",
-    "SetPasswordsOffset",
+    "DeleteState",
     "GetCacheUserCreated",
-    "SetCacheUserCreated",
-    "GetState",
-    "SetState",
     "GetData",
+    "GetHashType",
+    "GetInputFormat",
+    "GetMessageIdToDelete",
+    "GetPasswordsOffset",
+    "GetService",
+    "GetServicesOffset",
+    "GetState",
+    "SetCacheUserCreated",
     "SetData",
+    "SetHashType",
+    "SetInputFormat",
+    "SetMessageIdToDelete",
+    "SetPasswordsOffset",
+    "SetService",
+    "SetServicesOffset",
+    "SetState",
 )

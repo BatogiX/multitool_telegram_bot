@@ -1,26 +1,33 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Callable, Any, Awaitable, Union, Set, Optional
+from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.types import Message, Update
 
-from config import bot_cfg
+from config import BOT_CFG
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+logger = logging.getLogger(__name__)
 
 
 class AutoDeleteMessagesMiddleware(BaseMiddleware):
     def __init__(self):
-        self.message_ids: dict[int, Set[int]] = defaultdict(set)  # chat_id -> message_ids
+        self.message_ids: dict[int, set[int]] = defaultdict(set)  # chat_id -> message_ids
         self.tasks: dict[int, asyncio.Task] = {}  # chat_id -> deletion task
-        logging.info(f"Middleware {self.__class__.__name__} started")
+        logger.info(f"Middleware {self.__class__.__name__} started")
 
     async def __call__(
         self,
-        handler: Callable[[Update, dict], Awaitable[Union[Message, tuple[Message, Message]]]],
+        handler: Callable[[Update, dict], Awaitable[Message | tuple[Message, Message]]],
         event: Update,
-        data: dict[str, Any]
+        data: dict[str, Any],
     ) -> Any:
         if event.inline_query:
             return await handler(event, data)
@@ -37,7 +44,7 @@ class AutoDeleteMessagesMiddleware(BaseMiddleware):
             self._ensure_deletion_task(answer.chat.id, answer)
 
     @staticmethod
-    def _extract_message(event: Update) -> Optional[Message]:
+    def _extract_message(event: Update) -> Message | None:
         if event.message:
             return event.message
         if event.callback_query.message:
@@ -52,7 +59,7 @@ class AutoDeleteMessagesMiddleware(BaseMiddleware):
         self.tasks[chat_id] = asyncio.create_task(self._schedule_deletion(chat_id, message))
 
     async def _schedule_deletion(self, chat_id: int, message: Message) -> None:
-        await asyncio.sleep(bot_cfg.ttl)
+        await asyncio.sleep(BOT_CFG.ttl)
 
         while self.message_ids[chat_id]:
             message_id = self.message_ids[chat_id].pop()
@@ -62,5 +69,5 @@ class AutoDeleteMessagesMiddleware(BaseMiddleware):
                 await asyncio.sleep(e.retry_after)
                 await message.bot.delete_message(chat_id, message_id)
             except Exception as e:
-                logging.error(f"Failed to delete message {message_id} in chat {chat_id}: {e}")
+                logger.exception(f"Failed to delete message {message_id} in chat {chat_id}: {e}")
         self.tasks.pop(chat_id)

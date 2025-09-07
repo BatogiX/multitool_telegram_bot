@@ -1,89 +1,92 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+from logging import Logger
+from typing import Final
 
 from aiogram import Bot, Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 
-from config import bot_cfg
-from database import db
-from handlers import handlers_router
-from middleware import AutoDeleteMessagesMiddleware
+from .config import BOT_CFG
+from .database import db
+from .handlers import handler_routers
+from .middleware import AutoDeleteMessagesMiddleware
 
-bot = Bot(token=bot_cfg.token)
-dispatcher = Dispatcher()
-
-
-def setup_dispatcher() -> None:
-    dispatcher.startup.register(on_startup)
-    dispatcher.shutdown.register(on_shutdown)
-    dispatcher.update.middleware.register(AutoDeleteMessagesMiddleware())
-    dispatcher.include_router(handlers_router)
+BOT: Final[Bot] = Bot(token=BOT_CFG.token)
+DISPATCHER: Final[Dispatcher] = Dispatcher()
+LOGGER: Final[Logger] = logging.getLogger(__name__)
 
 
 async def on_startup() -> None:
-    logging.info("Bot is starting up...")
+    LOGGER.info("Bot is starting up...")
     await db.initialize()
-    dispatcher.fsm.storage = db.key_value.storage
+    # DISPATCHER.fsm.storage = db.nosql.storage
 
 
 async def on_shutdown() -> None:
-    logging.info("Bot is shutting down...")
-    await bot.session.close()
+    LOGGER.info("Bot is shutting down...")
     await db.close()
+    await BOT.session.close()
 
 
-async def start_polling_mode() -> None:
-    setup_dispatcher()
-
-    current_webhook = await bot.get_webhook_info()
-    if current_webhook.url:
-        await bot.delete_webhook()
-
-    try:
-        await dispatcher.start_polling(bot)
-    except asyncio.CancelledError:
-        logging.info("Bot has been manually stopped.")
+def setup_dispatcher() -> None:
+    DISPATCHER.startup.register(on_startup)
+    DISPATCHER.shutdown.register(on_shutdown)
+    DISPATCHER.update.middleware.register(AutoDeleteMessagesMiddleware())
+    DISPATCHER.include_routers(*handler_routers)
 
 
 async def set_webhook() -> None:
-    expected_url = f"{bot_cfg.webhook_url}{bot_cfg.webhook_path}"
+    expected_url = f"{BOT_CFG.web_server_url}{BOT_CFG.webhook_path}"
 
-    current_webhook = await bot.get_webhook_info()
+    current_webhook = await BOT.get_webhook_info()
     if not current_webhook.url:
-        await bot.set_webhook(expected_url, secret_token=bot_cfg.webhook_secret)
-        logging.info("Webhook has been set.")
+        await BOT.set_webhook(expected_url, secret_token=BOT_CFG.webhook_secret)
+        LOGGER.info("Webhook has been set.")
         return
 
     should_update = current_webhook.url != expected_url
     if should_update:
-        logging.info("Webhook needs to be updated. Setting new webhook...")
-        await bot.set_webhook(
-            url=expected_url,
-            secret_token=bot_cfg.webhook_secret
-        )
+        LOGGER.info("Webhook needs to be updated. Setting new webhook...")
+        await BOT.set_webhook(url=expected_url, secret_token=BOT_CFG.webhook_secret)
     else:
-        logging.info("Webhook is already set correctly.")
+        LOGGER.info("Webhook is already set correctly.")
 
 
 def start_webhook_mode() -> None:
-    setup_dispatcher()
-    dispatcher.startup.register(set_webhook)
+    DISPATCHER.startup.register(set_webhook)
     app = web.Application()
-    webhook_requests_handler = SimpleRequestHandler(
-        dispatcher=dispatcher, bot=bot, secret_token=bot_cfg.webhook_secret
-    )
-    webhook_requests_handler.register(app, path=bot_cfg.webhook_path)
-    setup_application(app, dispatcher, bot=bot)
-    web.run_app(app, host=bot_cfg.web_server_host, port=bot_cfg.web_server_port)
+    webhook_requests_handler = SimpleRequestHandler(DISPATCHER, BOT, secret_token=BOT_CFG.webhook_secret)
+    webhook_requests_handler.register(app, path=BOT_CFG.webhook_path)
+    setup_application(app, DISPATCHER, bot=BOT)
+    web.run_app(app, host=BOT_CFG.web_server_host, port=BOT_CFG.web_server_port)
 
 
-if __name__ == '__main__':
+async def start_polling_mode() -> None:
+    current_webhook = await BOT.get_webhook_info()
+    if current_webhook.url:
+        await BOT.delete_webhook()
+
+    await DISPATCHER.start_polling(BOT)  # pyright: ignore[reportUnknownMemberType]
+
+
+async def main() -> None:
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    if bot_cfg.mode == "webhook":
-        start_webhook_mode()
-    elif bot_cfg.mode == "polling":
-        asyncio.run(start_polling_mode())
+    setup_dispatcher()
+    try:
+        if BOT_CFG.mode == "webhook":
+            start_webhook_mode()
+        elif BOT_CFG.mode == "polling":
+            await start_polling_mode()
+    except asyncio.CancelledError:
+        LOGGER.info("Bot has been manually stopped.")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

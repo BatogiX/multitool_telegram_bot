@@ -1,1 +1,1 @@
-web: python src/main.py
+web: uv sync --extra redis --extra postgresql && python src/main.py

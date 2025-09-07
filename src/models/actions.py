@@ -1,54 +1,84 @@
-from abc import ABC
-from typing import Literal, Union
+from __future__ import annotations
 
-from models.kv.base import BaseKeyValueSet, BaseKeyValueGet
+from abc import ABC, abstractmethod
+from typing import Literal, final, override
+
+from models.kv.base import BaseKeyValueDelete, BaseKeyValueGet, BaseKeyValueSet
 
 
 class BaseAction(ABC):
-    action: Literal["set", "get", "delete"]
-    type: Literal["data", "value"]
-    data: Union[BaseKeyValueSet, BaseKeyValueGet]
+    @property
+    @abstractmethod
+    def action(self) -> Literal["set", "get", "delete"]: ...
 
 
-class BaseDataAction(BaseAction):
-    type: Literal["data"] = "data"
+class BaseType(ABC):
+    @property
+    @abstractmethod
+    def type(self) -> Literal["data", "value"]: ...
 
 
-class BaseValueAction(BaseAction):
-    type: Literal["value"] = "value"
+class BaseData[DataT](ABC):
+    _data: DataT
+
+    def __init__(self, data: DataT) -> None:
+        self._data = data
+
+    @property
+    def data(self) -> DataT:
+        return self._data
 
 
-class BaseSetAction(BaseAction):
-    def __init__(self, data: BaseKeyValueSet):
-        self.data = data
-
-    action: Literal["set"] = "set"
-
-
-class BaseGetAction(BaseAction):
-    def __init__(self, data: BaseKeyValueGet):
-        self.data = data
-
-    action: Literal["get"] = "get"
+class BaseSetAction(BaseData[BaseKeyValueSet], BaseAction, ABC):
+    @property
+    @override
+    def action(self) -> Literal["set"]:
+        return "set"
 
 
-class BaseDeleteAction(BaseAction):
-    def __init__(self, data: BaseKeyValueGet):
-        self.data = data
+class BaseGetAction(BaseData[BaseKeyValueGet], BaseAction, ABC):
+    @property
+    @override
+    def action(self) -> Literal["get"]:
+        return "get"
 
-    action: Literal["delete"] = "delete"
+
+class BaseDeleteAction(BaseData[BaseKeyValueDelete], BaseAction, ABC):
+    @property
+    @override
+    def action(self) -> Literal["delete"]:
+        return "delete"
 
 
+class BaseDataAction(BaseType, ABC):
+    @property
+    @override
+    def type(self) -> Literal["data"]:
+        return "data"
+
+
+class BaseValueAction(BaseType, ABC):
+    @property
+    @override
+    def type(self) -> Literal["value"]:
+        return "value"
+
+
+@final
 class SetDataAction(BaseSetAction, BaseDataAction): ...
 
 
+@final
 class GetFromDataAction(BaseGetAction, BaseDataAction): ...
 
 
+@final
 class SetAction(BaseSetAction, BaseValueAction): ...
 
 
+@final
 class GetAction(BaseGetAction, BaseValueAction): ...
 
 
+@final
 class DeleteAction(BaseDeleteAction, BaseValueAction): ...

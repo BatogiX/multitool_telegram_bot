@@ -1,5 +1,9 @@
 # Multitool Telegram Bot
 
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/badge/v2.json)](https://docs.pydantic.dev/latest/contributing/#badges)
+
 ## Features
 
 - [Verify File's Checksum](src/helpers/hash_menu_helper/hash_menu_fsm.py)
@@ -9,52 +13,41 @@
 ## Installation
 
 To install and set up the project, follow these steps:
-   
-1. Create a virtual environment:
-   ```sh
-   python -m venv .venv
-   ```
-   
-2. Activate the virtual environment:
-   - For Windows (Git Bash):
-        ```sh
-        source .venv/Scripts/activate
-        ```
-   - For macOS/Linux:
-        ```sh
-        source .venv/bin/activate
-        ```
 
-3. Install the required dependencies:
+1. Clone
+   ```sh
+   git clone ...
+   ```
+
+2. ```sh
+   cd multitool_telegram_bot
+   ```
+
+3. Create a virtual environment:
+   ```sh
+   uv venv
+   ```
+
+4. Install the required dependencies:
     ```sh
-    pip install -r requirements.txt
+    uv sync
     ```
+
+5. Install specific dependencies for example:
+    ```sh
+    uv sync --extra redis --extra postgresql --inexact
+    ```
+
+## Usage
 
 ### Setup environment variables:
 
 - ``BOT_TOKEN=``
+- ``DB_SQL_URL=``
+- ``DB_NOSQL_URL=``
+- ``CRYPTO_PEPPER=``
 
-Either:
-
-- `KEY_VALUE_DB_URL=`
-- `RELATIONAL_DB_URL=`
-
-Or:
-- `KEY_VALUE_DB_HOST=`
-- `KEY_VALUE_DB_PORT=`
-- `KEY_VALUE_DB_USERNAME=`
-- `KEY_VALUE_DB_PASSWORD=`
-
-And:
-- `RELATIONAL_DB_HOST=`
-- `RELATIONAL_DB_PORT=`
-- `RELATIONAL_DB_USERNAME=`
-- `RELATIONAL_DB_PASSWORD=`
-- `RELATIONAL_DB_NAME=`   
-
-## Usage
-
-To start the bot, run the following command:
+### To start the bot, run the following command:
 ```sh
-python src/main.py
+uv run src/main.py
 ```

@@ -1,5 +1,3 @@
 from .postgresql import PostgresqlManager
 
-__all__ = (
-    "PostgresqlManager",
-)
+__all__ = ("PostgresqlManager",)

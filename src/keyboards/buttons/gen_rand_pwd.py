@@ -1,16 +1,22 @@
-from aiogram.types import InlineKeyboardButton
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Final
 
 from models.callback_data import GenerateRandomPasswordCallback
-from utils.kb_utils import create_button
 
-REGENERATE_RAND_PWD_TEXT = "🎲 Regenerate Password"
+from .util import create_button
+
+if TYPE_CHECKING:
+    from aiogram.types import InlineKeyboardButton
+
+REGENERATE_RAND_PASSW_TEXT = "🎲 Regenerate Password"
 
 
 def _btn_regenerate_rand_pwd() -> InlineKeyboardButton:
     return create_button(
-        text=REGENERATE_RAND_PWD_TEXT,
-        callback_data=GenerateRandomPasswordCallback.Enter()
+        text=REGENERATE_RAND_PASSW_TEXT,
+        callback_data=GenerateRandomPasswordCallback.Enter(),
     )
 
 
-btn_regenerate_rand_pwd: InlineKeyboardButton = _btn_regenerate_rand_pwd()
+BTN_REGENERATE_RAND_PWD: Final[InlineKeyboardButton] = _btn_regenerate_rand_pwd()

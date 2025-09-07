@@ -1,9 +1,12 @@
-from typing import Union
+from __future__ import annotations
 
-from aiogram.fsm.storage.base import StorageKey
+from typing import TYPE_CHECKING
 
-from config import key_value_db_cfg
-from models.kv.base import BaseKeyValueGet, BaseKeyValue, BaseKeyValueSet
+from config import NOSQL_DB_CFG
+from models.kv.base import BaseKeyValue, BaseKeyValueGet, BaseKeyValueSet
+
+if TYPE_CHECKING:
+    from aiogram.fsm.storage.base import StorageKey
 
 
 class BaseData(BaseKeyValue):
@@ -13,8 +16,8 @@ class BaseData(BaseKeyValue):
 
 
 class SetData(BaseKeyValueSet, BaseData):
-    def __init__(self, storage_key: StorageKey, value: Union[str, int]):
-        super().__init__(storage_key, value, key_value_db_cfg.data_ttl)
+    def __init__(self, storage_key: StorageKey, value: str) -> None:
+        super().__init__(storage_key, value, NOSQL_DB_CFG.data_ttl)
 
 
 class GetData(BaseKeyValueGet, BaseData): ...
