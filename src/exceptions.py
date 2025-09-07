@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, LiteralString, Self
-
-from pydantic_core import PydanticCustomError
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from types import CoroutineType

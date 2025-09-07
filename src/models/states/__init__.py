@@ -1,5 +1,5 @@
-from .hash_menu_states import HashMenuStates
-from .password_manager_states import PasswordManagerStates
+from .hash_menu import HashMenuStates
+from .password_manager import PasswordManagerStates
 
 __all__ = (
     "HashMenuStates",
